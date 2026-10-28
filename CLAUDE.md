@@ -18,7 +18,10 @@ pnpm dev:reset       # drop containers and DB volume (seed is only for a fresh D
 pnpm test            # integration tests; need dev:up + dev:seed first
 pnpm --filter directus-extension-dirlocal exec vitest run tests/pull.test.ts -t "bulk update"   # single test
 pnpm --filter @dirlocal/core exec vitest run tests/engine.test.ts   # core unit tests, no Directus needed
+pnpm --filter @dirlocal/expo-demo ios   # demo as a development build in the iOS simulator; e2e flows in examples/expo-demo/e2e
 ```
+
+`@dirlocal/expo` resolves `@dirlocal/core` from its `dist`, so `pnpm build` (or `pnpm typecheck`, which builds core first) after core changes.
 
 `pnpm dev:up` rebuilds the image, so run it after every extension change before `pnpm test`.
 
@@ -42,7 +45,7 @@ Offline mode for Directus 12.5 apps (Expo first, web later) that keeps Directus 
 
 - `packages/directus-extension` — bundle extension (hook + endpoint + schedule) exposing `/dirlocal/pull`, `/dirlocal/snapshot`, `/dirlocal/push`
 - `packages/core` — platform-agnostic engine: snapshot/pull, cursor, scheduler with backoff, events (outbox and conflicts in phase 2)
-- `packages/expo` — expo-sqlite adapter + React hooks (`useCollection`)
+- `packages/expo` — `expoSqlite()` (driver over expo-sqlite for core's `sqliteStorage`) + React hooks (`OfflineProvider`, `useCollection`, `useSyncStatus`); re-exports core
 - `examples/directus` (docker-compose + seed with roles), `examples/expo-demo`
 
 ## Core architecture (spans server + client)
@@ -52,6 +55,13 @@ Offline mode for Directus 12.5 apps (Expo first, web later) that keeps Directus 
 - **Snapshot = key list + data by key** (`GET /dirlocal/snapshot` → cursor, primary_key, keys; `POST /dirlocal/snapshot/items`). Not paged: offset loses rows on concurrent deletes and Directus forbids `_gt` on uuid.
 - **Writes through ItemsService.** `push` is idempotent via `dirlocal_applied.mutation_id`; conflict = later journal entry from another actor touching overlapping fields since `base_version`. v1 policy: server wins, conflicts returned to client. The hook journals the applied write — push does not write the journal itself.
 - **Client (`@dirlocal/core`):** `createOffline()` depends only on the `Storage` and `Transport` interfaces (`src/types.ts`); `memoryStorage()` is the reference Storage, `directusTransport()` wraps an `@directus/sdk` client and maps errors to `GoneError`/`ForbiddenError`/`CollectionInactiveError`/`NetworkError`. Rows are stored whole as JSON — no field schema, because `/fields` needs `directus_fields` read, which API-only users don't have. One global cursor = min of per-collection snapshot cursors (re-delivery is harmless, a gap is not). A 410 re-snapshots and reconciles local rows by the key list instead of wiping them. A collection that is inactive or unreadable is emptied locally and reported via the `unavailable` event. `start()` never rejects (the app must boot offline). Planned for phase 2: optimistic writes + outbox, client UUIDs, `client_key → server_key` map for integer PKs.
+
+## Expo / React Native gotchas (verified in phase 1)
+
+- pnpm `overrides` in `pnpm-workspace.yaml` pin one react / react-dom / react-native: duplicate copies of native Expo modules break the app. Check with `npx expo-doctor` in `examples/expo-demo`.
+- In Expo, a failed `fetch` throws `Error("fetch failed: …")`, not `TypeError`; `normalizeError` treats any error without an HTTP `response` as `NetworkError`.
+- Tests importing code that imports `expo-sqlite` must `vi.mock('expo-sqlite')` (it pulls react-native Flow sources); `node:sqlite` tests need `// @vitest-environment node`.
+- Maestro can't type into an iOS secure field on a non-Latin keyboard layout; the password field uses `keyboardType="ascii-capable"`.
 
 ## Rules (from plan §9 and §2)
 
