@@ -37,7 +37,9 @@ services:
       DB_PASSWORD: directus
       CACHE_ENABLED: 'false'
       TELEMETRY: 'false'
-      DIRLOCAL_COLLECTIONS: projects,tasks,notes
+      DIRLOCAL_COLLECTIONS: projects,tasks,notes,invoices
+      # Short settle window so integration tests don't wait 2 s per pull (default 2000).
+      DIRLOCAL_SETTLE_MS: 300
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8055/server/ping || exit 1']
       interval: 3s

@@ -12,6 +12,7 @@
 		"dev:up": "pnpm build && docker compose -f examples/directus/docker-compose.yml up -d --build --wait",
 		"dev:down": "docker compose -f examples/directus/docker-compose.yml down",
 		"dev:reset": "docker compose -f examples/directus/docker-compose.yml down -v",
-		"dev:seed": "node examples/directus/seed.ts"
+		"dev:seed": "node examples/directus/seed.ts",
+		"test": "pnpm -r test"
 	}
 }

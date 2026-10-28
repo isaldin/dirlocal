@@ -1,4 +1,4 @@
-// Seeds the dev Directus: three collections, two roles with different rights, three users, sample data.
+// Seeds the dev Directus: four collections, two roles with different rights, three users, sample data.
 // Run against a fresh instance: `pnpm dev:up && pnpm dev:seed`. Re-running is a no-op once `tasks` exists.
 
 const URL = process.env['DIRECTUS_URL'] ?? 'http://localhost:8055';
@@ -101,6 +101,12 @@ async function main(): Promise<void> {
 		],
 		[m2o('task', 'tasks', 'CASCADE')],
 	);
+	// Manager-only: on the Core tier this is how "not visible to the caller" looks (whole collection, no row rules).
+	await createCollection(
+		'invoices',
+		[id(), { field: 'amount', type: 'decimal', schema: { numeric_precision: 10, numeric_scale: 2 } }, dateUpdated],
+		[m2o('project', 'projects', 'SET NULL')],
+	);
 
 	// Core tier (no license) rejects custom rules: item filters, field lists, validation, presets.
 	// So the roles differ only per collection/action here; row-level visibility needs a licensed tier (docs/adr/0004).
@@ -108,6 +114,7 @@ async function main(): Promise<void> {
 		...all('projects', ['create', 'read', 'update', 'delete']),
 		...all('tasks', ['create', 'read', 'update', 'delete']),
 		...all('notes', ['create', 'read', 'update', 'delete']),
+		...all('invoices', ['create', 'read', 'update', 'delete']),
 	]);
 	// API-only (no app access): mobile users don't take one of the Core tier's 3 seats.
 	const workerRole = await createRole('Worker', false, [

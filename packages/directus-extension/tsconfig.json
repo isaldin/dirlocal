@@ -1,8 +1,8 @@
 {
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
-		"lib": ["ES2022"],
-		"rootDir": "./src"
+		"lib": ["ES2022", "DOM"],
+		"noEmit": true
 	},
-	"include": ["./src/**/*.ts"]
+	"include": ["./src/**/*.ts", "./tests/**/*.ts", "./vitest.config.ts"]
 }
