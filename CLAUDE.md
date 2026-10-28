@@ -15,11 +15,15 @@ pnpm typecheck
 pnpm dev:up          # build + Directus 12.5.1 + Postgres on :8055, extension baked into the image
 pnpm dev:seed        # collections projects/tasks/notes, roles Manager/Worker; passwords = email local part
 pnpm dev:reset       # drop containers and DB volume (seed is only for a fresh DB)
+pnpm test            # integration tests; need dev:up + dev:seed first
+pnpm --filter directus-extension-dirlocal exec vitest run tests/pull.test.ts -t "bulk update"   # single test
 ```
+
+`pnpm dev:up` rebuilds the image, so run it after every extension change before `pnpm test`.
 
 Inspect the journal: `docker compose -f examples/directus/docker-compose.yml exec -T postgres psql -U directus -c 'select * from dirlocal_changes order by id' </dev/null`. Without `</dev/null`, `exec -T` swallows the stdin of a surrounding heredoc/script.
 
-No test runner yet (planned: vitest integration tests against Docker Directus, phase 1).
+Tests hit the running Directus over HTTP and share one journal: files run sequentially (a `$permissions` marker from one test would 410 cursors held by another). The settled cursor lags by `DIRLOCAL_SETTLE_MS` (300 ms in dev compose, `SETTLE_MS` in `tests/helpers.ts`); `pullAll()` waits it out, and a test that needs a cursor *after* a write must `settle()` first.
 
 ## Directus 12 facts verified in phase 0 (see docs/adr/0001, 0004)
 
@@ -27,6 +31,8 @@ No test runner yet (planned: vitest integration tests against Docker Directus, p
 - System collections emit `<name>.*` events (`files.create`), not `items.*`. DB-level cascades emit nothing.
 - Without a license key (Core tier) Directus rejects permissions with item filters, field lists, validation or presets (`RESOURCE_RESTRICTED`); 3 seats (app/admin-access users only), 25 active collections. The dev seed is Core-compatible.
 - `/server/health` returns 403 anonymously; use `/server/ping`.
+- Filters on `uuid` fields don't support `_gt`/`_lt` (`INVALID_QUERY`), so no keyset paging by uuid PK.
+- Journal keys are strings; convert back to numbers for integer PKs before `readMany` (`toPrimaryKeys`).
 - Don't import `defineHook`/`defineEndpoint` from the SDK — they pull zod (~90 KB) into the bundle. Type the export with `HookConfig`/`EndpointConfig` from `@directus/types`.
 
 ## What is being built
