@@ -1,0 +1,28 @@
+{
+	"name": "@dirlocal/core",
+	"version": "0.0.0",
+	"description": "Platform-agnostic offline engine for Directus: snapshot, pull, cursors, scheduling",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"peerDependencies": {
+		"@directus/sdk": ">=27.1.0"
+	},
+	"devDependencies": {
+		"@directus/sdk": "27.1.0",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.5"
+	}
+}

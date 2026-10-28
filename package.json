@@ -13,6 +13,6 @@
 		"dev:down": "docker compose -f examples/directus/docker-compose.yml down",
 		"dev:reset": "docker compose -f examples/directus/docker-compose.yml down -v",
 		"dev:seed": "node examples/directus/seed.ts",
-		"test": "pnpm -r test"
+		"test": "pnpm -r --workspace-concurrency=1 test"
 	}
 }

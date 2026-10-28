@@ -13,3 +13,4 @@ minimumReleaseAgeExclude:
   - '@directus/themes@3.0.2'
   - '@directus/types@18.1.0'
   - '@directus/utils@14.0.1'
+  - '@directus/sdk@27.1.0'

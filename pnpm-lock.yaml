@@ -8,6 +8,18 @@ importers:
 
   .: {}
 
+  packages/core:
+    devDependencies:
+      '@directus/sdk':
+        specifier: 27.1.0
+        version: 27.1.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@types/node@26.6.5)(vite@8.1.6(@types/node@26.6.5)(esbuild@0.28.1)(terser@5.51.2))
+
   packages/directus-extension:
     devDependencies:
       '@directus/extensions-sdk':
@@ -93,6 +105,10 @@ packages:
 
   '@directus/schema@14.0.2':
     resolution: {integrity: sha512-qHAtkAejvcPQCWaRpU9HqJs7Jm4gtxPujT2eB4L+RnTy8ESGjR0C4WvPbUWiXLjaWJbaWB0avFE0Dptzvz7Uzw==}
+
+  '@directus/sdk@27.1.0':
+    resolution: {integrity: sha512-dPuhb6DOJfTHlh9fbe0wQeUJLpjwVIA3rhVkRotcNL3IBFbnzgTxZhz5kt6CP+UK3TLfpC0erkKYszBXj7yolg==}
+    engines: {node: '>=22'}
 
   '@directus/system-data@4.9.0':
     resolution: {integrity: sha512-c2+9v5YyPEb76b+vs1OxTJX1HP9OBt48q6v/ybeQHVzLuLqt5wD61bsV/kpqyPyzQP2RX6KSnpARq4NYJ4I1Zg==}
@@ -2625,6 +2641,8 @@ snapshots:
       - sqlite3
       - supports-color
       - tedious
+
+  '@directus/sdk@27.1.0': {}
 
   '@directus/system-data@4.9.0': {}
 
