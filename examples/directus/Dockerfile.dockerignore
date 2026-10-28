@@ -1,0 +1,3 @@
+*
+!packages/directus-extension/package.json
+!packages/directus-extension/dist

@@ -1,0 +1,48 @@
+name: dirlocal-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: directus
+      POSTGRES_PASSWORD: directus
+      POSTGRES_DB: directus
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'directus', '-d', 'directus']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  directus:
+    build:
+      context: ../..
+      dockerfile: examples/directus/Dockerfile
+    ports:
+      - '8055:8055'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SECRET: dirlocal-dev-secret-not-for-production-use
+      PUBLIC_URL: http://localhost:8055
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: admin
+      DB_CLIENT: pg
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: directus
+      DB_USER: directus
+      DB_PASSWORD: directus
+      CACHE_ENABLED: 'false'
+      TELEMETRY: 'false'
+      DIRLOCAL_COLLECTIONS: projects,tasks,notes
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8055/server/ping || exit 1']
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+volumes:
+  postgres:
