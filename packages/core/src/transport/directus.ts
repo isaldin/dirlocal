@@ -31,10 +31,12 @@ export function directusTransport(client: RestClient<any>): Transport {
 
 /** Maps SDK RequestError / fetch failures to the engine's error classes. */
 export function normalizeError(error: unknown): unknown {
-	if (error instanceof TypeError) return new NetworkError(error.message);
-
-	const response = (error as { response?: Response }).response;
-	if (!response || typeof response.status !== 'number') return error;
+	const response = (error as { response?: Response } | null)?.response;
+	// SDK request errors always carry the HTTP response; without one the request never got an answer.
+	// Platforms differ in what fetch throws: TypeError in browsers/Node, Error("fetch failed: …") in Expo.
+	if (!response || typeof response.status !== 'number') {
+		return error instanceof Error ? new NetworkError(error.message, { cause: error }) : error;
+	}
 
 	const errors = (error as { errors?: unknown }).errors;
 	const first = Array.isArray(errors) ? (errors[0] as { message?: string; extensions?: { code?: string } } | undefined) : undefined;
