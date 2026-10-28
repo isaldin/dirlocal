@@ -7,7 +7,7 @@ import type { ApiContext } from '../types';
 import { badRequest, requireUser } from './http';
 
 /**
- * GET  /dirlocal/snapshot?collection=      → { cursor, keys }
+ * GET  /dirlocal/snapshot?collection=      → { cursor, primary_key, keys }
  * POST /dirlocal/snapshot/items {collection, keys} → { data }
  * Contract in plan §6. Keys first, then data by key: offset paging loses rows when earlier ones are deleted,
  * and Directus rejects `_gt` on uuid fields, so keyset paging isn't available.
@@ -32,7 +32,7 @@ export function registerSnapshot(router: Router, { services, getSchema, database
 			const items = new services.ItemsService(collection, { schema, accountability });
 			const rows: Record<string, unknown>[] = await items.readByQuery({ fields: [primary], sort: [primary], limit: -1 });
 
-			res.json({ cursor, keys: rows.map((row) => String(row[primary])) });
+			res.json({ cursor, primary_key: primary, keys: rows.map((row) => String(row[primary])) });
 		} catch (error) {
 			next(error);
 		}

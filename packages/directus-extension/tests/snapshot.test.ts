@@ -11,7 +11,7 @@ beforeAll(async () => {
 
 /** Client-side snapshot: keys first, then data in batches. */
 async function snapshot(token: string, collection: string, batch = 2) {
-	const head = await request<{ cursor: number; keys: string[] }>('GET', `/dirlocal/snapshot?collection=${collection}`, token);
+	const head = await request<{ cursor: number; primary_key: string; keys: string[] }>('GET', `/dirlocal/snapshot?collection=${collection}`, token);
 	expect(head.status).toBe(200);
 	const rows: Record<string, any>[] = [];
 	for (let i = 0; i < head.body.keys.length; i += batch) {
@@ -25,9 +25,11 @@ async function snapshot(token: string, collection: string, batch = 2) {
 describe('snapshot', () => {
 	it('returns every visible key with the cursor, and their data by key', async () => {
 		const all = await api<{ id: string }[]>('GET', '/items/tasks?fields=id,title&limit=-1', admin);
-		const { cursor, keys, rows } = await snapshot(worker, 'tasks');
+		const head = await snapshot(worker, 'tasks');
+		const { cursor, keys, rows } = head;
 
 		expect(typeof cursor).toBe('number');
+		expect(head.primary_key).toBe('id');
 		expect([...keys].sort()).toEqual(all.map((r) => r.id).sort());
 		expect(rows.map((r) => r['id']).sort()).toEqual([...keys].sort());
 		expect(rows[0]).toHaveProperty('title');
