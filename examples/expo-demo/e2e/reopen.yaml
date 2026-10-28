@@ -1,0 +1,9 @@
+# Kills and relaunches the app without clearing data, then waits for the task list.
+appId: dev.dirlocal.demo
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: sync-status
+    timeout: 60000

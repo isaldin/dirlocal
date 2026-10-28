@@ -1,0 +1,10 @@
+# Server back with changes made while the app was offline: they must arrive, including the delete.
+appId: dev.dirlocal.demo
+---
+- extendedWaitUntil:
+    visible: 'Added while offline'
+    timeout: 60000
+- assertVisible: 'Up to date.*'
+- assertVisible: 'Order tiles'
+- assertNotVisible: 'Fit the shower'
+- assertNotVisible: 'Order materials'

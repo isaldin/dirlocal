@@ -1,0 +1,9 @@
+# Server down: relaunch must show local data and an offline status.
+appId: dev.dirlocal.demo
+---
+- runFlow: reopen.yaml
+- extendedWaitUntil:
+    visible: 'Offline — showing local data.*'
+    timeout: 30000
+- assertVisible: 'Install countertop'
+- assertVisible: 'Fit the shower'

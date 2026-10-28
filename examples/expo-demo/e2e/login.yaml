@@ -1,0 +1,20 @@
+# Signs in as the seed Worker. Needs `pnpm dev:up && pnpm dev:seed` and the app running (`pnpm --filter @dirlocal/expo-demo ios`).
+appId: dev.dirlocal.demo
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: email
+    timeout: 60000
+- tapOn:
+    id: email
+- inputText: worker@example.com
+- tapOn:
+    id: password
+- inputText: worker
+- pressKey: Enter # submits the form (returnKeyType "go")
+- extendedWaitUntil:
+    visible: 'Up to date.*'
+    timeout: 30000
+- assertVisible: 'Install countertop'
