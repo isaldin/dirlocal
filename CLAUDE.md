@@ -4,9 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-Pre-code. The only source of truth is `Directus Offline — план работ.md` (Russian): it holds the product goal, API contract, phase checklists, open questions, and the decision log. Read it before starting any task. There are no build, lint, or test commands yet; once `package.json` exists, add the real commands here (planned: pnpm workspaces, vitest integration tests against Directus in Docker).
+`Directus Offline — план работ.md` (Russian) is the source of truth: product goal, API contract, phase checklists, open questions, decision log. Read it before starting any task. Architecture decisions live in `docs/adr/`. The plan expects small commits, one per checklist item.
 
-The plan expects small commits, one per checklist item.
+## Commands
+
+```sh
+pnpm install
+pnpm build           # builds packages (directus-extension → packages/directus-extension/dist)
+pnpm typecheck
+pnpm dev:up          # build + Directus 12.5.1 + Postgres on :8055, extension baked into the image
+pnpm dev:seed        # collections projects/tasks/notes, roles Manager/Worker; passwords = email local part
+pnpm dev:reset       # drop containers and DB volume (seed is only for a fresh DB)
+```
+
+Inspect the journal: `docker compose -f examples/directus/docker-compose.yml exec -T postgres psql -U directus -c 'select * from dirlocal_changes order by id' </dev/null`. Without `</dev/null`, `exec -T` swallows the stdin of a surrounding heredoc/script.
+
+No test runner yet (planned: vitest integration tests against Docker Directus, phase 1).
+
+## Directus 12 facts verified in phase 0 (see docs/adr/0001, 0004)
+
+- `items.*` actions fire after commit, are not awaited, and run concurrently: journal order ≠ commit order. `server.start` is also an un-awaited action, so table setup uses init `app.before` + memoized `ensureTables()`.
+- System collections emit `<name>.*` events (`files.create`), not `items.*`. DB-level cascades emit nothing.
+- Without a license key (Core tier) Directus rejects permissions with item filters, field lists, validation or presets (`RESOURCE_RESTRICTED`); 3 seats (app/admin-access users only), 25 active collections. The dev seed is Core-compatible.
+- `/server/health` returns 403 anonymously; use `/server/ping`.
+- Don't import `defineHook`/`defineEndpoint` from the SDK — they pull zod (~90 KB) into the bundle. Type the export with `HookConfig`/`EndpointConfig` from `@directus/types`.
 
 ## What is being built
 
