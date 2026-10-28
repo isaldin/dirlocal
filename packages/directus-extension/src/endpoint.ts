@@ -1,10 +1,16 @@
 import type { EndpointConfig } from '@directus/types';
-import { registerVisible } from './endpoints/visible';
+import { getConfig } from './config';
+import { registerCompact } from './endpoints/compact';
+import { registerPull } from './endpoints/pull';
+import { registerSnapshot } from './endpoints/snapshot';
 
 const endpoint: EndpointConfig = {
 	id: 'dirlocal',
 	handler: (router, context) => {
-		registerVisible(router, context);
+		const config = getConfig(context.env);
+		registerPull(router, context, config);
+		registerSnapshot(router, context, config);
+		registerCompact(router, context, config);
 	},
 };
 

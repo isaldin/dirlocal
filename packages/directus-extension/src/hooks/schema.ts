@@ -27,7 +27,8 @@ async function createTables(database: Database): Promise<void> {
 			table.string('op', 1).notNullable();
 			table.json('fields').nullable();
 			table.uuid('actor').nullable();
-			table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(database.fn.now());
+			// Written by the app, not a DB default: the settle window compares it with app time (ADR 0001).
+			table.timestamp('created_at', { useTz: true }).notNullable();
 			table.index(['collection', 'item_key']);
 			table.index(['collection', 'id']);
 		});
