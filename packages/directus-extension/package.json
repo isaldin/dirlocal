@@ -1,0 +1,46 @@
+{
+	"name": "directus-extension-dirlocal",
+	"version": "0.0.0",
+	"description": "Offline support for Directus apps: change journal, pull, snapshot and push under Directus permissions",
+	"type": "module",
+	"keywords": [
+		"directus",
+		"directus-extension",
+		"directus-extension-bundle"
+	],
+	"files": [
+		"dist"
+	],
+	"directus:extension": {
+		"type": "bundle",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"entries": [
+			{
+				"type": "hook",
+				"name": "dirlocal-hook",
+				"source": "src/hook.ts"
+			},
+			{
+				"type": "endpoint",
+				"name": "dirlocal",
+				"source": "src/endpoint.ts"
+			}
+		],
+		"host": "^12.5.0"
+	},
+	"scripts": {
+		"build": "directus-extension build",
+		"dev": "directus-extension build --watch --no-minify",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@directus/extensions-sdk": "18.1.0",
+		"@directus/types": "18.1.0",
+		"@types/express": "^4.17.25",
+		"@types/express-serve-static-core": "^4.19.9",
+		"typescript": "^7.0.2"
+	}
+}

@@ -1,0 +1,15 @@
+packages:
+  - packages/*
+allowBuilds:
+  esbuild: true
+  vue-demi: false
+minimumReleaseAgeExclude:
+  - '@directus/ai@1.4.0'
+  - '@directus/composables@11.7.0'
+  - '@directus/constants@14.6.0'
+  - '@directus/extensions-sdk@18.1.0'
+  - '@directus/extensions@4.1.0'
+  - '@directus/system-data@4.9.0'
+  - '@directus/themes@3.0.2'
+  - '@directus/types@18.1.0'
+  - '@directus/utils@14.0.1'
