@@ -1,6 +1,6 @@
 # @dirlocal/expo
 
-Expo adapter of [dirlocal](../../README.md): offline Directus data in expo-sqlite, React hooks, and a file cache for uploads and `/assets`.
+Expo adapter of [dirlocal](https://github.com/isaldin/dirlocal#readme): offline Directus data in expo-sqlite, React hooks, and a file cache for uploads and `/assets`.
 
 ```sh
 npx expo install @dirlocal/expo @directus/sdk expo-sqlite expo-file-system expo-crypto
@@ -20,7 +20,7 @@ function Tasks() {
 }
 ```
 
-Exports everything from [`@dirlocal/core`](../core) plus:
+Exports everything from [`@dirlocal/core`](https://github.com/isaldin/dirlocal/tree/main/packages/core) plus:
 
 | | |
 | --- | --- |
@@ -32,4 +32,4 @@ Exports everything from [`@dirlocal/core`](../core) plus:
 | `useSyncStatus()`, `usePendingCount()` | status line |
 | `useFileUri()` | local URI of a file for `<Image>` |
 
-Full walkthrough: [quickstart](../../docs/quickstart.md). Working app: [examples/expo-demo](../../examples/expo-demo).
+Full walkthrough: [quickstart](https://github.com/isaldin/dirlocal/blob/main/docs/quickstart.md). Working app: [examples/expo-demo](https://github.com/isaldin/dirlocal/tree/main/examples/expo-demo).

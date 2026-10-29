@@ -1,8 +1,8 @@
 # @dirlocal/core
 
-Platform-agnostic client engine of [dirlocal](../../README.md): snapshot, pull, outbox and push against [`directus-extension-dirlocal`](../directus-extension), with a cursor, backoff and events.
+Platform-agnostic client engine of [dirlocal](https://github.com/isaldin/dirlocal#readme): snapshot, pull, outbox and push against [`directus-extension-dirlocal`](https://github.com/isaldin/dirlocal/tree/main/packages/directus-extension), with a cursor, backoff and events.
 
-For Expo apps use [`@dirlocal/expo`](../expo), which re-exports this package with SQLite storage, a file cache and React hooks. Use `core` directly to write an adapter for another platform: implement `Storage` (or pass a `SqlDriver` to `sqliteStorage`) and pass a `@directus/sdk` client.
+For Expo apps use [`@dirlocal/expo`](https://github.com/isaldin/dirlocal/tree/main/packages/expo), which re-exports this package with SQLite storage, a file cache and React hooks. Use `core` directly to write an adapter for another platform: implement `Storage` (or pass a `SqlDriver` to `sqliteStorage`) and pass a `@directus/sdk` client.
 
 ```ts
 import { createOffline, memoryStorage } from '@dirlocal/core';
@@ -25,4 +25,4 @@ offline.on('conflict', ({ conflicts }) => console.log(conflicts));
 | `clear()` | wipe everything (logout) |
 | `on(event)` | `change`, `status`, `outbox`, `conflict`, `rejected`, `reset`, `unavailable`, `error` |
 
-See [how it works](../../docs/architecture.md).
+See [how it works](https://github.com/isaldin/dirlocal/blob/main/docs/architecture.md).

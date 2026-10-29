@@ -1,6 +1,6 @@
 # directus-extension-dirlocal
 
-Server side of [dirlocal](../../README.md): offline mode for Directus apps that keeps Directus permissions intact.
+Server side of [dirlocal](https://github.com/isaldin/dirlocal#readme): offline mode for Directus apps that keeps Directus permissions intact.
 
 A bundle extension (hook + endpoint) for Directus 12.5+:
 
@@ -10,7 +10,7 @@ A bundle extension (hook + endpoint) for Directus 12.5+:
 - `POST /dirlocal/push`: queued offline writes, applied once each through `ItemsService` as the user, with per-field conflict detection;
 - a daily compaction of the journal.
 
-Clients: [`@dirlocal/expo`](../expo) (or [`@dirlocal/core`](../core) for other platforms).
+Clients: [`@dirlocal/expo`](https://github.com/isaldin/dirlocal/tree/main/packages/expo) (or [`@dirlocal/core`](https://github.com/isaldin/dirlocal/tree/main/packages/core) for other platforms).
 
 ## Install
 
@@ -33,4 +33,4 @@ COPY --chown=node:node directus-extension-dirlocal /directus/extensions/directus
 
 App users need the same permissions as over REST: read on offline collections, create/update/delete where the app writes, read + create on `directus_files` for uploads.
 
-See the [quickstart](../../docs/quickstart.md), [how it works](../../docs/architecture.md) and [limitations](../../docs/limitations.md).
+See the [quickstart](https://github.com/isaldin/dirlocal/blob/main/docs/quickstart.md), [how it works](https://github.com/isaldin/dirlocal/blob/main/docs/architecture.md) and [limitations](https://github.com/isaldin/dirlocal/blob/main/docs/limitations.md).

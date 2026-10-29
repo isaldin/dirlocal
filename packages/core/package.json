@@ -3,6 +3,13 @@
 	"version": "0.0.0",
 	"description": "Platform-agnostic offline engine for Directus: snapshot, pull, cursors, scheduling",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/isaldin/dirlocal.git",
+		"directory": "packages/core"
+	},
+	"homepage": "https://github.com/isaldin/dirlocal/tree/main/packages/core#readme",
+	"bugs": "https://github.com/isaldin/dirlocal/issues",
 	"type": "module",
 	"exports": {
 		".": {
