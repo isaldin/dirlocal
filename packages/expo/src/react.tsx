@@ -64,3 +64,21 @@ export function useSyncStatus(): { status: SyncStatus; error?: unknown } {
 
 	return state;
 }
+
+/** Number of local changes not yet accepted by the server. */
+export function usePendingCount(): number {
+	const offline = useOffline();
+	const [pending, setPending] = useState(0);
+
+	useEffect(() => {
+		let active = true;
+		void offline.pending().then((mutations) => active && setPending(mutations.length));
+		const unsubscribe = offline.on('outbox', (event) => setPending(event.pending));
+		return () => {
+			active = false;
+			unsubscribe();
+		};
+	}, [offline]);
+
+	return pending;
+}

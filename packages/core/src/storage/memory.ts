@@ -1,9 +1,11 @@
-import type { CollectionInfo, LocalQuery, Row, Storage, WriteOp } from '../types.js';
+import type { CollectionInfo, LocalQuery, Mutation, Row, Storage, WriteOp } from '../types.js';
 
 /** In-memory Storage: for tests and as the reference behaviour for platform adapters. Not persistent. */
 export function memoryStorage(): Storage {
 	const tables = new Map<string, { primaryKey: string; rows: Map<string, Row> }>();
 	const state = new Map<string, string>();
+	// Map keeps insertion order, and set() on an existing id keeps its position: same as the SQLite seq column.
+	const outbox = new Map<string, Mutation>();
 
 	return {
 		async prepare(collections: CollectionInfo[]) {
@@ -18,20 +20,33 @@ export function memoryStorage(): Storage {
 			return state.get(key) ?? null;
 		},
 
-		async write(ops: WriteOp[], updates = {}) {
+		async write(ops: WriteOp[], updates = {}, changes = {}) {
+			for (const op of ops) {
+				if (op.type === 'upsert' && !tables.has(op.collection)) throw new Error(`collection not prepared: ${op.collection}`);
+			}
 			for (const op of ops) {
 				const table = tables.get(op.collection);
 				if (op.type === 'delete') {
 					table?.rows.delete(op.key);
 					continue;
 				}
-				if (!table) throw new Error(`collection not prepared: ${op.collection}`);
-				table.rows.set(String(op.row[table.primaryKey]), structuredClone(op.row));
+				table!.rows.set(String(op.row[table!.primaryKey]), structuredClone(op.row));
 			}
 			for (const [key, value] of Object.entries(updates)) {
 				if (value === null) state.delete(key);
 				else state.set(key, value);
 			}
+			for (const id of changes.remove ?? []) outbox.delete(id);
+			for (const mutation of changes.put ?? []) outbox.set(mutation.mutation_id, structuredClone(mutation));
+		},
+
+		async get(collection, key) {
+			const row = tables.get(collection)?.rows.get(key);
+			return row ? structuredClone(row) : null;
+		},
+
+		async outbox() {
+			return [...outbox.values()].map((mutation) => structuredClone(mutation));
 		},
 
 		async keys(collection) {
@@ -53,6 +68,7 @@ export function memoryStorage(): Storage {
 		async clear() {
 			tables.forEach((table) => table.rows.clear());
 			state.clear();
+			outbox.clear();
 		},
 	};
 }

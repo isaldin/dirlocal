@@ -1,6 +1,6 @@
 import { customEndpoint, type RequestOptions, type RestClient } from '@directus/sdk';
 import { CollectionInactiveError, ForbiddenError, GoneError, HttpError, NetworkError } from '../errors.js';
-import type { PullResponse, Row, SnapshotHead, Transport } from '../types.js';
+import type { MutationResult, PullResponse, Row, SnapshotHead, Transport } from '../types.js';
 
 /** Transport over an @directus/sdk client with rest() and authentication already configured. */
 export function directusTransport(client: RestClient<any>): Transport {
@@ -26,6 +26,16 @@ export function directusTransport(client: RestClient<any>): Transport {
 
 		pull: ({ cursor, collections, limit }) =>
 			call<PullResponse>({ path: '/dirlocal/pull', params: { cursor, collections: collections.join(','), limit } }),
+
+		push: async (mutations) =>
+			(
+				await call<{ results: MutationResult[] }>({
+					path: '/dirlocal/push',
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ mutations }),
+				})
+			).results,
 	};
 }
 

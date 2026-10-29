@@ -1,6 +1,6 @@
 // End-to-end: engine + directusTransport + memoryStorage against the dev Directus
 // (`pnpm dev:up && pnpm dev:seed`, DIRLOCAL_SETTLE_MS=300).
-import { authentication, createDirectus, createItem, deleteItem, readItems, rest, updateItem } from '@directus/sdk';
+import { authentication, createDirectus, createItem, deleteItem, readItem, readItems, rest, updateItem } from '@directus/sdk';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createOffline, type Offline } from '../src/engine.js';
 import { memoryStorage } from '../src/storage/memory.js';
@@ -16,11 +16,13 @@ async function client(user: string) {
 }
 
 let admin: Awaited<ReturnType<typeof client>>;
+let manager: Awaited<ReturnType<typeof client>>;
 let worker: Offline;
 const unavailable: OfflineEvents['unavailable'][] = [];
 
 beforeAll(async () => {
 	admin = await client('admin');
+	manager = await client('manager');
 	worker = createOffline({
 		directus: await client('worker'),
 		storage: memoryStorage(),
@@ -69,5 +71,47 @@ describe('engine against Directus', () => {
 		await settle();
 		await worker.sync();
 		expect(await worker.query('notes', { where: { id: note['id'] } })).toEqual([]);
+	});
+
+	it('pushes an edit of one field without losing another user\'s edit of another field', async () => {
+		const task = await admin.request(createItem('tasks', { title: 'two devices', status: 'todo' }));
+		await settle();
+		await worker.sync();
+
+		// Worker edits offline (not synced yet); manager renames the task meanwhile.
+		await worker.mutate('tasks', { op: 'update', key: task['id'], patch: { status: 'done' } });
+		await manager.request(updateItem('tasks', task['id'], { title: 'renamed by manager' }));
+		await settle();
+		await worker.sync();
+
+		expect(await admin.request(readItem('tasks', task['id']))).toMatchObject({ title: 'renamed by manager', status: 'done' });
+		expect(await worker.get('tasks', task['id'])).toMatchObject({ title: 'renamed by manager', status: 'done' });
+		expect(await worker.pending()).toEqual([]);
+	});
+
+	it('creates a note offline and re-keys it to the integer key Directus assigns', async () => {
+		const [task] = await worker.query('tasks', { limit: 1 });
+		const body = `written offline ${Date.now()}`;
+		const key = await worker.mutate('notes', { op: 'create', data: { task: task!['id'], body } });
+		await worker.sync();
+
+		const [local] = await worker.query('notes', { where: { body } });
+		expect(local!['id']).toEqual(expect.any(Number));
+		expect(await worker.get('notes', key)).toBeNull();
+		expect(await admin.request(readItem('notes', local!['id'] as number))).toMatchObject({ body, task: task!['id'] });
+	});
+
+	it('reports a write Directus refuses and restores the row', async () => {
+		const rejected: OfflineEvents['rejected'][] = [];
+		const off = worker.on('rejected', (event) => rejected.push(event));
+		const [task] = await worker.query('tasks', { limit: 1 });
+
+		await worker.mutate('tasks', { op: 'delete', key: task!['id'] as string }); // Worker can't delete tasks
+		expect(await worker.get('tasks', task!['id'] as string)).toBeNull();
+		await worker.sync();
+		off();
+
+		expect(rejected.map((r) => r.error.code)).toEqual(['FORBIDDEN']);
+		expect(await worker.get('tasks', task!['id'] as string)).toMatchObject({ id: task!['id'] });
 	});
 });

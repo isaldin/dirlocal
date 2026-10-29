@@ -2,7 +2,7 @@ import { createOffline, memoryStorage, type Offline, type PullResponse, type Row
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { OfflineProvider, useCollection, useOffline, useSyncStatus } from '../src/react.js';
+import { OfflineProvider, useCollection, useOffline, usePendingCount, useSyncStatus } from '../src/react.js';
 
 /** Minimal server: whatever is in `rows` is snapshotted; `next` is returned by the following pull. */
 function server(rows: Row[]) {
@@ -15,6 +15,7 @@ function server(rows: Row[]) {
 			next = null;
 			return response;
 		},
+		push: async (mutations) => mutations.map((m) => ({ mutation_id: m.mutation_id, status: 'applied' as const })),
 	};
 	return { transport, push: (response: PullResponse) => (next = response) };
 }
@@ -98,5 +99,19 @@ describe('useOffline', () => {
 		}
 		render(<Count />, { wrapper });
 		expect(await screen.findByText('0 rows')).toBeDefined();
+	});
+});
+
+describe('usePendingCount', () => {
+	it('counts unsent mutations and drops to zero after sync', async () => {
+		const { offline, wrapper } = setup(tasks);
+		await offline.sync();
+		const { result } = renderHook(() => usePendingCount(), { wrapper });
+
+		await act(() => offline.mutate('tasks', { op: 'update', key: 't1', patch: { status: 'done' } }).then(() => undefined));
+		expect(result.current).toBe(1);
+
+		await act(() => offline.sync());
+		expect(result.current).toBe(0);
 	});
 });

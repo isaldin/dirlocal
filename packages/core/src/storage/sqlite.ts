@@ -1,4 +1,4 @@
-import type { CollectionInfo, LocalQuery, Primitive, Row, Storage, WriteOp } from '../types.js';
+import type { CollectionInfo, LocalQuery, Mutation, Primitive, Row, Storage, WriteOp } from '../types.js';
 
 export type SqlValue = string | number | null;
 
@@ -14,6 +14,7 @@ export interface SqlDriver extends SqlExecutor {
 }
 
 const STATE_TABLE = 'dirlocal_state';
+const OUTBOX_TABLE = 'dirlocal_outbox';
 const TABLE_PREFIX = 'dirlocal_c_';
 
 /**
@@ -25,7 +26,13 @@ export function sqliteStorage(driver: SqlDriver): Storage {
 	let ready: Promise<void> | undefined;
 
 	const init = () =>
-		(ready ??= driver.run(`CREATE TABLE IF NOT EXISTS ${STATE_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`));
+		(ready ??= (async () => {
+			await driver.run(`CREATE TABLE IF NOT EXISTS ${STATE_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+			// seq keeps insertion order; an upsert by mutation_id keeps the original position.
+			await driver.run(
+				`CREATE TABLE IF NOT EXISTS ${OUTBOX_TABLE} (seq INTEGER PRIMARY KEY AUTOINCREMENT, mutation_id TEXT NOT NULL UNIQUE, body TEXT NOT NULL)`,
+			);
+		})());
 
 	async function tableExists(collection: string): Promise<boolean> {
 		if (primaryKeys.has(collection)) return true;
@@ -48,7 +55,7 @@ export function sqliteStorage(driver: SqlDriver): Storage {
 			return rows[0]?.value ?? null;
 		},
 
-		async write(ops: WriteOp[], state = {}) {
+		async write(ops: WriteOp[], state = {}, outbox = {}) {
 			await init();
 			const deletable = new Set<string>();
 			for (const op of ops) if (op.type === 'delete' && (await tableExists(op.collection))) deletable.add(op.collection);
@@ -70,7 +77,26 @@ export function sqliteStorage(driver: SqlDriver): Storage {
 					if (value === null) await tx.run(`DELETE FROM ${STATE_TABLE} WHERE key = ?`, [key]);
 					else await tx.run(`INSERT INTO ${STATE_TABLE} (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [key, value]);
 				}
+				for (const id of outbox.remove ?? []) await tx.run(`DELETE FROM ${OUTBOX_TABLE} WHERE mutation_id = ?`, [id]);
+				for (const mutation of outbox.put ?? []) {
+					await tx.run(
+						`INSERT INTO ${OUTBOX_TABLE} (mutation_id, body) VALUES (?, ?) ON CONFLICT(mutation_id) DO UPDATE SET body = excluded.body`,
+						[mutation.mutation_id, JSON.stringify(mutation)],
+					);
+				}
 			});
+		},
+
+		async get(collection, key) {
+			if (!(await tableExists(collection))) return null;
+			const rows = await driver.all<{ data: string }>(`SELECT data FROM ${table(collection)} WHERE key = ?`, [key]);
+			return rows[0] ? (JSON.parse(rows[0].data) as Row) : null;
+		},
+
+		async outbox() {
+			await init();
+			const rows = await driver.all<{ body: string }>(`SELECT body FROM ${OUTBOX_TABLE} ORDER BY seq`);
+			return rows.map((row) => JSON.parse(row.body) as Mutation);
 		},
 
 		async keys(collection) {
@@ -110,6 +136,7 @@ export function sqliteStorage(driver: SqlDriver): Storage {
 			await driver.transaction(async (tx) => {
 				for (const { name } of tables) await tx.run(`DELETE FROM ${quote(name)}`);
 				await tx.run(`DELETE FROM ${STATE_TABLE}`);
+				await tx.run(`DELETE FROM ${OUTBOX_TABLE}`);
 			});
 		},
 	};

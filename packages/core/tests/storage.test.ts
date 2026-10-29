@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import { memoryStorage } from '../src/storage/memory.js';
 import { type SqlDriver, type SqlValue, sqliteStorage } from '../src/storage/sqlite.js';
-import type { Storage } from '../src/types.js';
+import type { Mutation, Storage } from '../src/types.js';
 
 /** node:sqlite wrapped as the async driver; mirrors what the expo adapter does with expo-sqlite. */
 function nodeSqlite(db = new DatabaseSync(':memory:')): SqlDriver {
@@ -31,6 +31,7 @@ function nodeSqlite(db = new DatabaseSync(':memory:')): SqlDriver {
 }
 
 const upsert = (collection: string, row: Record<string, unknown>) => ({ type: 'upsert' as const, collection, row });
+const mutation = (id: string, patch: Record<string, unknown> = {}): Mutation => ({ mutation_id: id, collection: 'tasks', op: 'update', key: 'a', patch });
 const ids = (rows: Record<string, unknown>[]) => rows.map((r) => r['id']);
 
 describe.each([
@@ -100,12 +101,30 @@ describe.each([
 		expect(await storage.query('tasks', { where: { "x') OR 1=1 --": 'y' } })).toEqual([]);
 	});
 
-	it('clears rows and state', async () => {
+	it('gets one row by string key', async () => {
 		const storage = await seeded();
-		await storage.write([], { cursor: '5' });
+		expect(await storage.get('notes', '7')).toEqual({ note_id: 7, body: 'int key' });
+		expect(await storage.get('tasks', 'missing')).toBeNull();
+		expect(await storage.get('missing', 'a')).toBeNull();
+	});
+
+	it('keeps the outbox in insertion order; put replaces in place, remove drops', async () => {
+		const storage = await seeded();
+		await storage.write([], {}, { put: [mutation('m1'), mutation('m2'), mutation('m3')] });
+		await storage.write([], {}, { put: [mutation('m1', { status: 'done' })], remove: ['m2'] });
+
+		const outbox = await storage.outbox();
+		expect(outbox.map((m) => m.mutation_id)).toEqual(['m1', 'm3']);
+		expect(outbox[0]!.patch).toEqual({ status: 'done' });
+	});
+
+	it('clears rows, state and the outbox', async () => {
+		const storage = await seeded();
+		await storage.write([], { cursor: '5' }, { put: [mutation('m1')] });
 		await storage.clear();
 		expect(await storage.query('tasks')).toEqual([]);
 		expect(await storage.getState('cursor')).toBeNull();
+		expect(await storage.outbox()).toEqual([]);
 	});
 });
 
@@ -115,19 +134,23 @@ describe('sqliteStorage', () => {
 		await storage.prepare([{ collection: 'tasks', primaryKey: 'id' }]);
 		await storage.write([upsert('tasks', { id: 'a' })], { cursor: '1' });
 
-		await expect(storage.write([upsert('tasks', { id: 'b' }), upsert('unprepared', { id: 'c' })], { cursor: '2' })).rejects.toThrow();
+		await expect(
+			storage.write([upsert('tasks', { id: 'b' }), upsert('unprepared', { id: 'c' })], { cursor: '2' }, { put: [mutation('m1')] }),
+		).rejects.toThrow();
 		expect(await storage.keys('tasks')).toEqual(['a']);
 		expect(await storage.getState('cursor')).toBe('1');
+		expect(await storage.outbox()).toEqual([]);
 	});
 
 	it('persists across instances on the same database (restart)', async () => {
 		const db = new DatabaseSync(':memory:');
 		const first = sqliteStorage(nodeSqlite(db));
 		await first.prepare([{ collection: 'tasks', primaryKey: 'id' }]);
-		await first.write([upsert('tasks', { id: 'a' })], { cursor: '3' });
+		await first.write([upsert('tasks', { id: 'a' })], { cursor: '3' }, { put: [mutation('m1')] });
 
 		const second = sqliteStorage(nodeSqlite(db));
 		expect(await second.getState('cursor')).toBe('3');
+		expect((await second.outbox()).map((m) => m.mutation_id)).toEqual(['m1']);
 		expect(await second.keys('tasks')).toEqual(['a']); // readable before prepare()
 		await second.write([{ type: 'delete', collection: 'tasks', key: 'a' }]);
 		expect(await second.keys('tasks')).toEqual([]);
