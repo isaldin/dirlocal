@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-`Directus Offline — план работ.md` (Russian) is the source of truth: product goal, API contract, phase checklists, open questions, decision log. Read it before starting any task. Architecture decisions live in `docs/adr/`. The plan expects small commits, one per checklist item.
+User docs (English) are `README.md` and `docs/*.md` (quickstart, architecture, limitations, FAQ); update them with behaviour changes. `Directus Offline — план работ.md` (Russian) is the source of truth: product goal, API contract, phase checklists, open questions, decision log. Read it before starting any task. Architecture decisions live in `docs/adr/`. The plan expects small commits, one per checklist item.
 
 ## Commands
 
@@ -22,6 +22,8 @@ pnpm --filter @dirlocal/expo-demo ios   # demo as a development build in the iOS
 ```
 
 `@dirlocal/expo` resolves `@dirlocal/core` from its `dist`, so `pnpm build` (or `pnpm typecheck`, which builds core first) after core changes.
+
+Production image (extension built from source inside Docker): `docker build -f docker/Dockerfile -t directus-dirlocal .` — `examples/directus/Dockerfile` is the dev variant that copies the locally built `dist`.
 
 `pnpm dev:up` rebuilds the image, so run it after every extension change before `pnpm test`.
 
