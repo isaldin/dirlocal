@@ -16,6 +16,7 @@ function server(rows: Row[]) {
 			return response;
 		},
 		push: async (mutations) => mutations.map((m) => ({ mutation_id: m.mutation_id, status: 'applied' as const })),
+		upload: async (m) => ({ mutation_id: m.mutation_id, status: 'applied' as const }),
 	};
 	return { transport, push: (response: PullResponse) => (next = response) };
 }

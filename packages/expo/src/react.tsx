@@ -1,5 +1,6 @@
 import type { LocalQuery, Offline, Row, SyncStatus } from '@dirlocal/core';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
+import type { FileCache } from './files.js';
 
 const OfflineContext = createContext<Offline | null>(null);
 
@@ -81,4 +82,35 @@ export function usePendingCount(): number {
 	}, [offline]);
 
 	return pending;
+}
+
+/**
+ * Local URI of a file for <Image>: null while loading, or when it can't be fetched (offline and not cached).
+ * Tries again after the next successful sync.
+ */
+export function useFileUri(files: FileCache, id: string | null | undefined): string | null {
+	const offline = useOffline();
+	const [uri, setUri] = useState<string | null>(null);
+
+	useEffect(() => {
+		let active = true;
+		let found: string | null = null;
+		setUri(null);
+		if (!id) return;
+		const load = () =>
+			void files.uri(id).then((next) => {
+				found = next;
+				if (active) setUri(next);
+			});
+		load();
+		const unsubscribe = offline.on('status', ({ status }) => {
+			if (status === 'idle' && !found) load();
+		});
+		return () => {
+			active = false;
+			unsubscribe();
+		};
+	}, [offline, files, id]);
+
+	return uri;
 }
