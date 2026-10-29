@@ -75,7 +75,7 @@ Offline mode for Directus 12.5 apps (Expo first, web later) that keeps Directus 
 
 ## Rules (from plan §9 and §2)
 
-- TypeScript strict, ESM, pnpm workspaces, changesets.
+- TypeScript strict, ESM, pnpm workspaces, changesets: a user-visible change gets `pnpm changeset`; the three published packages share one version (`fixed`). Release: `pnpm version-packages`, commit, `pnpm release`.
 - Never bypass `ItemsService` for user collections. Raw knex only for `dirlocal_*` tables.
 - Permissions only via the request's `accountability` — no service tokens in endpoints.
 - API contract changes: edit §6 of the plan document first, then code.
