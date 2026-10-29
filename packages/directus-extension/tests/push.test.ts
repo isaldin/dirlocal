@@ -150,7 +150,7 @@ describe('push', () => {
 			worker,
 			remove('tasks', task.id), // Worker has no delete permission on tasks
 			create('notes', { body: 'still applied' }),
-			create('tasks', { title: 'worker cannot create' }),
+			create('invoices', { amount: 1 }), // and no access to invoices at all
 		);
 
 		expect(results.map((r) => r['status'])).toEqual(['rejected', 'applied', 'rejected']);

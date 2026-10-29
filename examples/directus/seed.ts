@@ -1,4 +1,4 @@
-// Seeds the dev Directus: four collections, two roles with different rights, three users, sample data.
+// Seeds the dev Directus: four collections (tasks have a photo), two roles with different rights, three users, sample data.
 // Run against a fresh instance: `pnpm dev:up && pnpm dev:seed`. Re-running is a no-op once `tasks` exists.
 
 const URL = process.env['DIRECTUS_URL'] ?? 'http://localhost:8055';
@@ -39,7 +39,7 @@ const m2o = (field: string, related: string, onDelete: 'SET NULL' | 'CASCADE') =
 async function createCollection(
 	collection: string,
 	fields: object[],
-	relations: ReturnType<typeof m2o>[] = [],
+	relations: { field: object; relation: object }[] = [],
 ): Promise<void> {
 	await api('POST', '/collections', {
 		collection,
@@ -89,7 +89,14 @@ async function main(): Promise<void> {
 			{ field: 'description', type: 'text', schema: {} },
 			dateUpdated,
 		],
-		[m2o('project', 'projects', 'SET NULL'), m2o('assignee', 'directus_users', 'SET NULL')],
+		[
+			m2o('project', 'projects', 'SET NULL'),
+			m2o('assignee', 'directus_users', 'SET NULL'),
+			{
+				field: { field: 'photo', type: 'uuid', meta: { interface: 'file-image', special: ['file'] }, schema: {} },
+				relation: { field: 'photo', related_collection: 'directus_files', schema: { on_delete: 'SET NULL' } },
+			},
+		],
 	);
 	// Integer primary key on purpose: exercises the client_key → server_key mapping policy.
 	await createCollection(
@@ -119,8 +126,10 @@ async function main(): Promise<void> {
 	// API-only (no app access): mobile users don't take one of the Core tier's 3 seats.
 	const workerRole = await createRole('Worker', false, [
 		...all('projects', ['read']),
-		...all('tasks', ['read', 'update']),
+		...all('tasks', ['read', 'create', 'update']),
 		...all('notes', ['read', 'create']),
+		// Photos on tasks. Core tier: no row rules, so a Worker can read every file (docs/adr/0004).
+		...all('directus_files', ['read', 'create']),
 	]);
 
 	const user = (email: string, first_name: string, role: string) =>

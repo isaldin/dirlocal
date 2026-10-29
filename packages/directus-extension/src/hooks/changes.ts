@@ -6,7 +6,8 @@ import type { ApiContext, Register } from '../types';
 type Key = string | number;
 
 // Deleting from these can cascade into tracked collections through FKs (tasks.assignee → directus_users).
-const DELETE_EVENTS = ['items.delete', 'users.delete', 'files.delete'];
+const CASCADE_DELETE_EVENTS = ['items.delete', 'users.delete', 'files.delete'];
+const SYSTEM_PREFIX = 'directus_';
 const PENDING_TTL_MS = 60_000;
 
 /**
@@ -40,16 +41,26 @@ export function registerChangeLog({ filter, action }: Register, { database, env,
 	const own = (collection: string, keys: Key[], op: ChangeInput['op'], fields: string[] | null, actor: string | null) =>
 		tracked.has(collection) ? keys.map((key): ChangeInput => ({ collection, key, op, fields, actor })) : [];
 
-	action('items.create', ({ collection, key, payload }, { accountability }) =>
-		journal(own(collection, [key], 'c', Object.keys(payload ?? {}), accountability?.user ?? null)),
-	);
+	// System collections emit `<name>.*` instead of `items.*` (directus_files → files.create). An upload emits only
+	// files.upload: FilesService creates and updates the row with events off.
+	const scopes = ['items', ...[...tracked].filter((c) => c.startsWith(SYSTEM_PREFIX)).map((c) => c.slice(SYSTEM_PREFIX.length))];
+	const createEvents = [...scopes.map((scope) => `${scope}.create`), ...(scopes.includes('files') ? ['files.upload'] : [])];
+	const deleteEvents = [...new Set([...CASCADE_DELETE_EVENTS, ...scopes.map((scope) => `${scope}.delete`)])];
+
+	for (const event of createEvents) {
+		action(event, ({ collection, key, payload }, { accountability }) =>
+			journal(own(collection, [key], 'c', Object.keys(payload ?? {}), accountability?.user ?? null)),
+		);
+	}
 
 	// updateByQuery/updateMany apply one payload to all keys, so its keys are the changed fields for each item.
-	action('items.update', ({ collection, keys, payload }, { accountability }) =>
-		journal(own(collection, keys, 'u', Object.keys(payload ?? {}), accountability?.user ?? null)),
-	);
+	for (const scope of scopes) {
+		action(`${scope}.update`, ({ collection, keys, payload }, { accountability }) =>
+			journal(own(collection, keys, 'u', Object.keys(payload ?? {}), accountability?.user ?? null)),
+		);
+	}
 
-	for (const event of DELETE_EVENTS) {
+	for (const event of deleteEvents) {
 		filter<Key[]>(event, async (keys, { collection }, { schema, accountability }) => {
 			if (!schema) return keys;
 			try {
