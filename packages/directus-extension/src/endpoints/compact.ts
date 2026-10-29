@@ -1,5 +1,6 @@
 import type { Router } from 'express';
 import type { Config } from '../config';
+import { compactApplied } from '../services/applied';
 import { compact } from '../services/journal';
 import type { ApiContext } from '../types';
 import { requireUser } from './http';
@@ -15,7 +16,7 @@ export function registerCompact(router: Router, { database }: ApiContext, config
 			const days = req.query['retention_days'] === undefined ? config.retentionDays : Number(req.query['retention_days']);
 			if (!Number.isFinite(days) || days < 0) return void res.status(400).json({ error: 'bad_request' });
 
-			res.json({ deleted: await compact(database, days) });
+			res.json({ deleted: await compact(database, days), applied: await compactApplied(database, days) });
 		} catch (error) {
 			next(error);
 		}

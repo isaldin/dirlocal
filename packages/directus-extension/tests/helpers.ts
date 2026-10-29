@@ -1,4 +1,5 @@
 // Integration helpers against the dev Directus from examples/directus (`pnpm dev:up && pnpm dev:seed`).
+import { execFileSync } from 'node:child_process';
 
 export const URL = process.env['DIRECTUS_URL'] ?? 'http://localhost:8055';
 /** Must match DIRLOCAL_SETTLE_MS in examples/directus/docker-compose.yml. */
@@ -77,4 +78,13 @@ export async function pullAll(token: string, cursor: number, collections?: strin
 /** Last change per key, as a client would apply them. */
 export function latestByKey(changes: Change[]): Map<string, Change> {
 	return new Map(changes.map((change) => [`${change.collection}/${change.key}`, change]));
+}
+
+/** Runs SQL in the dev Postgres container: for states the API can't produce (e.g. a claim left by a crashed server). */
+export function sql(statement: string): string {
+	const compose = new globalThis.URL('../../../examples/directus/docker-compose.yml', import.meta.url).pathname;
+	return execFileSync('docker', ['compose', '-f', compose, 'exec', '-T', 'postgres', 'psql', '-U', 'directus', '-tAc', statement], {
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	}).trim();
 }

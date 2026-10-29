@@ -66,6 +66,29 @@ export async function readChanges(
 	return rows.map((row) => ({ ...row, id: Number(row.id) }));
 }
 
+export interface Entry {
+	id: number;
+	op: Op;
+	fields: string[] | null;
+	actor: string | null;
+}
+
+/** Journal entries of one item newer than `version`, oldest first. */
+export async function entriesSince(database: Database, collection: string, key: string, version: number): Promise<Entry[]> {
+	const rows = await database(CHANGES_TABLE)
+		.select('id', 'op', 'fields', 'actor')
+		.where({ collection, item_key: key })
+		.where('id', '>', version)
+		.orderBy('id');
+	// json columns come back parsed on Postgres and as text on SQLite/MySQL.
+	return rows.map((row) => ({
+		id: Number(row.id),
+		op: row.op,
+		fields: typeof row.fields === 'string' ? JSON.parse(row.fields) : row.fields,
+		actor: row.actor,
+	}));
+}
+
 export async function hasPermissionChange(database: Database, cursor: number): Promise<boolean> {
 	const row = await database(CHANGES_TABLE).where({ collection: PERMISSIONS_MARKER }).where('id', '>', cursor).first('id');
 	return row !== undefined;
