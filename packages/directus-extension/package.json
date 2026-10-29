@@ -1,6 +1,6 @@
 {
 	"name": "directus-extension-dirlocal",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Offline support for Directus apps: change journal, pull, snapshot and push under Directus permissions",
 	"license": "MIT",
 	"repository": {
