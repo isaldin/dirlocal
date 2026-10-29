@@ -46,7 +46,7 @@ Tests hit the running Directus over HTTP and share one journal: files and packag
 
 ## What is being built
 
-Offline mode for Directus 12.5 apps (Expo first, web later) that keeps Directus permissions intact. Working package name `dirlocal` (not final):
+Offline mode for Directus 12.5 apps (Expo first, web later) that keeps Directus permissions intact. Package name `dirlocal` (final, plan §3):
 
 - `packages/directus-extension` — bundle extension (hook + endpoint + schedule) exposing `/dirlocal/pull`, `/dirlocal/snapshot`, `/dirlocal/push`
 - `packages/core` — platform-agnostic engine: snapshot/pull, outbox + push, cursor, scheduler with backoff, events

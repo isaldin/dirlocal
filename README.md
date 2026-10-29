@@ -2,7 +2,7 @@
 
 Offline mode for Directus apps that keeps Directus permissions intact. The app reads and writes a local SQLite database; a Directus extension tells it what changed and applies its queued writes through Directus itself, so roles, policies, validation, hooks and flows behave exactly as with a normal REST call.
 
-> Status: early. Works against Directus 12.5 with Expo on iOS (verified in the simulator); Android and web are not verified yet. `dirlocal` is a working name.
+> Status: early. Works against Directus 12.5 with Expo on iOS (verified in the simulator); Android and web are not verified yet.
 
 ## Why
 
