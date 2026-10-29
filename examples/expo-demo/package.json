@@ -1,6 +1,7 @@
 {
   "name": "@dirlocal/expo-demo",
   "version": "1.0.0",
+  "private": true,
   "main": "index.ts",
   "dependencies": {
     "@directus/sdk": "27.1.0",
@@ -27,6 +28,5 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit"
-  },
-  "private": true
+  }
 }
