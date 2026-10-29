@@ -34,7 +34,7 @@
 - `@dirlocal/expo` — адаптер для Expo (expo-sqlite, хуки React)
 - `@dirlocal/web` — адаптер для веба (позже; IndexedDB или wa-sqlite)
 
-Проверено 2026-10-29: пакеты `dirlocal`, `@dirlocal/*`, `directus-extension-dirlocal` в npm не существуют; GitHub `dirlocal` свободен; у `dirlocal.dev/.io/.sh` нет NS-записей (whois не проверялся). Scope `@dirlocal` в npm анонимно не проверить — подтвердится созданием организации. Слово Directus в имени не используется (см. историю expo-open-ota → xprem); «dir» — отсылка, не марка. Образные варианты (larder, carrel, satchel и др.) отклонены: обычные слова заняты на GitHub, а описательное имя лучше находится по запросу «directus offline».
+Проверено 2026-10-29: пакеты `dirlocal`, `@dirlocal/*`, `directus-extension-dirlocal` в npm не существуют; GitHub `dirlocal` свободен; у `dirlocal.dev/.io/.sh` нет NS-записей (whois не проверялся). Организация `dirlocal` в npm создана 2026-10-29 (scope `@dirlocal` наш). Слово Directus в имени не используется (см. историю expo-open-ota → xprem); «dir» — отсылка, не марка. Образные варианты (larder, carrel, satchel и др.) отклонены: обычные слова заняты на GitHub, а описательное имя лучше находится по запросу «directus offline».
 
 ## 4. Структура репозитория (pnpm monorepo)
 
