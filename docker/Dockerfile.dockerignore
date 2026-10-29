@@ -1,0 +1,8 @@
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!packages/directus-extension/package.json
+!packages/directus-extension/tsconfig.json
+!packages/directus-extension/src
