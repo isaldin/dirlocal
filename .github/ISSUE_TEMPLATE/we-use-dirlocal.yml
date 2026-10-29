@@ -1,0 +1,43 @@
+name: We use dirlocal
+description: Tell us where dirlocal runs. It shows which setups to test first and helps others decide.
+title: 'We use dirlocal: <app or company>'
+labels: [showcase]
+body:
+  - type: input
+    id: who
+    attributes:
+      label: App or company
+      description: A name and a link if it is public. Write "private" if you'd rather not say.
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      options:
+        - Trying it out
+        - In development
+        - In production
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Setup
+      description: Directus version and database, Core or licensed, Expo SDK, iOS/Android.
+      placeholder: Directus 12.5.1 on Postgres 17, Core; Expo 58, iOS and Android
+  - type: input
+    id: scale
+    attributes:
+      label: Scale
+      description: Roughly how many devices, collections and rows per device.
+  - type: textarea
+    id: notes
+    attributes:
+      label: What works, what hurts
+  - type: checkboxes
+    id: listing
+    attributes:
+      label: Listing
+      options:
+        - label: You may list us as a user in the README.

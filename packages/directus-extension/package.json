@@ -2,6 +2,14 @@
 	"name": "directus-extension-dirlocal",
 	"version": "0.0.0",
 	"description": "Offline support for Directus apps: change journal, pull, snapshot and push under Directus permissions",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/isaldin/dirlocal.git",
+		"directory": "packages/directus-extension"
+	},
+	"homepage": "https://github.com/isaldin/dirlocal/tree/main/packages/directus-extension#readme",
+	"bugs": "https://github.com/isaldin/dirlocal/issues",
 	"type": "module",
 	"keywords": [
 		"directus",
