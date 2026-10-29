@@ -1,5 +1,5 @@
-import { type AuthenticationData, authentication, createDirectus, rest } from '@directus/sdk';
-import { createOffline, expoSqlite, type Offline } from '@dirlocal/expo';
+import { type AuthenticationData, authentication, createDirectus, realtime, rest } from '@directus/sdk';
+import { createFileCache, createOffline, directusRealtime, expoSqlite, type FileCache, type Offline } from '@dirlocal/expo';
 import * as SecureStore from 'expo-secure-store';
 
 const AUTH_KEY = 'dirlocal-demo.auth';
@@ -8,6 +8,7 @@ const COLLECTIONS = ['projects', 'tasks', 'notes'];
 
 export interface Session {
 	offline: Offline;
+	files: FileCache;
 	logout(): Promise<void>;
 }
 
@@ -26,16 +27,28 @@ function connect(server: string) {
 				},
 			}),
 		)
-		.with(rest());
+		.with(rest())
+		// Needs WEBSOCKETS_ENABLED=true on the server; without it the app falls back to polling.
+		.with(realtime({ authMode: 'handshake' }));
 
-	const storage = expoSqlite();
-	const offline = createOffline({ directus, storage, collections: COLLECTIONS, pollInterval: 15_000 });
+	const offline = createOffline({
+		directus,
+		storage: expoSqlite(),
+		collections: COLLECTIONS,
+		pollInterval: 15_000,
+		realtime: directusRealtime(directus),
+	});
 	offline.on('error', ({ error }) => console.log('[dirlocal] sync failed:', error));
+	const files = createFileCache({ offline, url: server, getToken: () => directus.getToken() });
+
 	const session: Session = {
 		offline,
+		files,
 		async logout() {
-			offline.stop();
-			await storage.clear();
+			// The next user must not see this user's rows, photos or unsent changes.
+			await offline.clear();
+			files.clear();
+			files.dispose();
 			await SecureStore.deleteItemAsync(AUTH_KEY);
 			await SecureStore.deleteItemAsync(SERVER_KEY);
 		},

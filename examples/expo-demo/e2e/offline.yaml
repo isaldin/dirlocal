@@ -5,5 +5,5 @@ appId: dev.dirlocal.demo
 - extendedWaitUntil:
     visible: 'Offline — showing local data.*'
     timeout: 30000
-- assertVisible: 'Install countertop'
-- assertVisible: 'Fit the shower'
+- assertVisible: '.*Install countertop.*'
+- assertVisible: '.*Fit the shower.*'

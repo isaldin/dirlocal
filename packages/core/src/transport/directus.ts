@@ -4,8 +4,9 @@ import type { FileUpload, Mutation, MutationResult, PullResponse, Row, SnapshotH
 
 export interface DirectusTransportOptions {
 	/**
-	 * The FormData value for a file. Default: React Native's `{ uri, name, type }` object.
-	 * On the web, return a Blob (e.g. read from IndexedDB).
+	 * The FormData value for a file. Default: React Native's `{ uri, name, type }` object, which React Native's own
+	 * fetch understands. Expo's fetch needs a Blob-like part (`@dirlocal/expo` passes an expo-file-system File);
+	 * on the web, return a Blob.
 	 */
 	filePart?: (file: FileUpload) => Blob | Promise<Blob> | object;
 }

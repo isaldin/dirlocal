@@ -67,6 +67,9 @@ Offline mode for Directus 12.5 apps (Expo first, web later) that keeps Directus 
 - In Expo, a failed `fetch` throws `Error("fetch failed: …")`, not `TypeError`; `normalizeError` treats any error without an HTTP `response` as `NetworkError`.
 - Tests importing code that imports `expo-sqlite` must `vi.mock('expo-sqlite')` (it pulls react-native Flow sources); `node:sqlite` tests need `// @vitest-environment node`.
 - Maestro can't type into an iOS secure field on a non-Latin keyboard layout; the password field uses `keyboardType="ascii-capable"`.
+- Expo's fetch only accepts Blob-like FormData parts (Blob or an object with `bytes()`), not React Native's `{ uri, name, type }` ("Unsupported FormDataPart implementation"); `@dirlocal/expo`'s `createOffline` passes an expo-file-system `File`, whose MIME type comes from the file extension.
+- Hermes has no `crypto.randomUUID`; `@dirlocal/expo` uses expo-crypto.
+- Maestro `clearState` keeps the iOS Keychain (SecureStore). A `Pressable` merges its children's texts into one accessibility label: match with `.*text.*`.
 
 ## Rules (from plan §9 and §2)
 

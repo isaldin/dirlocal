@@ -2,9 +2,9 @@
 appId: dev.dirlocal.demo
 ---
 - extendedWaitUntil:
-    visible: 'Added while offline'
+    visible: '.*Added while offline.*'
     timeout: 60000
 - assertVisible: 'Up to date.*'
-- assertVisible: 'Order tiles'
-- assertNotVisible: 'Fit the shower'
-- assertNotVisible: 'Order materials'
+- assertVisible: '.*Order tiles.*'
+- assertNotVisible: '.*Fit the shower.*'
+- assertNotVisible: '.*Order materials.*'

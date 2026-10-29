@@ -3,6 +3,18 @@ appId: dev.dirlocal.demo
 ---
 - launchApp:
     clearState: true
+# clearState keeps the iOS Keychain, so a session (token) from an earlier run can survive: log out first.
+- extendedWaitUntil:
+    visible:
+      id: 'email|logout'
+    timeout: 60000
+- runFlow:
+    when:
+      visible:
+        id: logout
+    commands:
+      - tapOn:
+          id: logout
 - extendedWaitUntil:
     visible:
       id: email
@@ -17,4 +29,4 @@ appId: dev.dirlocal.demo
 - extendedWaitUntil:
     visible: 'Up to date.*'
     timeout: 30000
-- assertVisible: 'Install countertop'
+- assertVisible: '.*Install countertop.*'

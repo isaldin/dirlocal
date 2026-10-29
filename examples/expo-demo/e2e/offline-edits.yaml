@@ -1,0 +1,29 @@
+# Phase 2 acceptance, part 1 (after login.yaml): offline, change a task's status and create a task with a photo.
+# Directus keeps running so another user can edit meanwhile; "Work offline" tells the engine it has no network.
+appId: dev.dirlocal.demo
+---
+- tapOn:
+    id: network-toggle
+- extendedWaitUntil:
+    visible: 'Offline — showing local data.*'
+    timeout: 10000
+- tapOn: '.*Install countertop.*' # todo → in progress
+- assertVisible: '.*Install countertop.*in progress.*'
+- tapOn:
+    id: new-task
+- tapOn:
+    id: new-title
+- inputText: Photo task
+- tapOn:
+    id: add-photo
+- tapOn: 'Photo, 31 March 2018.*' # a sample photo of the iOS simulator library
+- extendedWaitUntil:
+    visible:
+      id: photo-preview
+    timeout: 15000
+- tapOn:
+    id: save-task
+- extendedWaitUntil:
+    visible: '.*Photo task.*'
+    timeout: 10000
+- assertVisible: '.*3 not sent' # status update, photo upload, task create

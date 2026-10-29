@@ -1,4 +1,5 @@
-import { type Offline, type Row, uuid } from '@dirlocal/core';
+import type { Offline, Row } from '@dirlocal/core';
+import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 
 export interface FileCacheOptions {
@@ -54,6 +55,13 @@ export function createFileCache({ offline, url, getToken, maxBytes = 100 * 1024 
 		return file.uri;
 	};
 
+	/** Unsent copies are named `<id>.<ext>`: Expo derives the upload's MIME type from the extension. */
+	function findUpload(id: string): File | null {
+		if (!uploads.exists) return null;
+		const found = uploads.list().find((entry) => entry instanceof File && (entry.name === id || entry.name.startsWith(`${id}.`)));
+		return (found as File | undefined) ?? null;
+	}
+
 	async function download(id: string): Promise<string | null> {
 		ensure(cache);
 		const target = new File(cache, id);
@@ -89,10 +97,11 @@ export function createFileCache({ offline, url, getToken, maxBytes = 100 * 1024 
 		if (uploads.exists) {
 			const pending = new Set((await offline.pending()).filter((m) => m.op === 'upload').map((m) => m.key));
 			for (const entry of uploads.list()) {
-				if (!(entry instanceof File) || pending.has(entry.name)) continue;
+				const id = entry.name.split('.')[0]!;
+				if (!(entry instanceof File) || pending.has(id)) continue;
 				// Uploaded (or rejected): keep it as the cached copy so it isn't downloaded again.
 				ensure(cache);
-				const cached = new File(cache, entry.name);
+				const cached = new File(cache, id);
 				if (cached.exists) entry.delete();
 				else await entry.move(cached);
 			}
@@ -105,16 +114,16 @@ export function createFileCache({ offline, url, getToken, maxBytes = 100 * 1024 
 	return {
 		async add({ uri, type, name, data }) {
 			ensure(uploads);
-			const id = uuid();
+			const id = randomUUID();
 			const source = new File(uri);
-			const copy = new File(uploads, id);
+			const copy = new File(uploads, source.extension ? `${id}${source.extension}` : id);
 			await source.copy(copy);
 			return offline.uploadFile({ key: id, uri: copy.uri, type, name: name ?? source.name, data });
 		},
 
 		async uri(id) {
-			const pending = new File(uploads, id);
-			if (pending.exists) return pending.uri;
+			const pending = findUpload(id);
+			if (pending) return pending.uri;
 			const cached = new File(cache, id);
 			if (cached.exists) return touch(cached, id);
 			let inFlight = downloads.get(id);

@@ -21,6 +21,8 @@ const fs = vi.hoisted(() => {
 	return { files, dirs, remote, download, now, join, reset };
 });
 
+vi.mock('expo-crypto', () => ({ randomUUID: () => globalThis.crypto.randomUUID() }));
+
 vi.mock('expo-file-system', () => {
 	class File {
 		readonly uri: string;
@@ -32,6 +34,10 @@ vi.mock('expo-file-system', () => {
 		}
 		get name() {
 			return this.uri.split('/').pop()!;
+		}
+		get extension() {
+			const name = this.name;
+			return name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
 		}
 		get size() {
 			return fs.files.get(this.uri)?.size ?? 0;
@@ -111,8 +117,8 @@ describe('createFileCache', () => {
 		fs.files.delete('/tmp/picker/IMG_1.jpg'); // the picker's temp file is gone
 
 		const [upload] = await offline.pending();
-		expect(upload).toMatchObject({ op: 'upload', key: id, file: { uri: `/doc/dirlocal-uploads/${id}`, name: 'IMG_1.jpg', type: 'image/jpeg' } });
-		expect(await files.uri(id)).toBe(`/doc/dirlocal-uploads/${id}`);
+		expect(upload).toMatchObject({ op: 'upload', key: id, file: { uri: `/doc/dirlocal-uploads/${id}.jpg`, name: 'IMG_1.jpg', type: 'image/jpeg' } });
+		expect(await files.uri(id)).toBe(`/doc/dirlocal-uploads/${id}.jpg`);
 		expect(fs.download.calls).toEqual([]);
 	});
 
@@ -125,7 +131,7 @@ describe('createFileCache', () => {
 		await offline.sync();
 		await flush();
 
-		expect(fs.files.has(`/doc/dirlocal-uploads/${id}`)).toBe(false);
+		expect(fs.files.has(`/doc/dirlocal-uploads/${id}.jpg`)).toBe(false);
 		expect(await files.uri(id)).toBe(`/cache/dirlocal-files/${id}`);
 		expect(fs.download.calls).toEqual([]);
 	});
@@ -162,7 +168,7 @@ describe('createFileCache', () => {
 		expect(fs.files.has('/cache/dirlocal-files/used')).toBe(false);
 		expect(fs.files.has('/cache/dirlocal-files/old')).toBe(true);
 		expect(fs.files.has('/cache/dirlocal-files/new')).toBe(true);
-		expect(fs.files.has(`/doc/dirlocal-uploads/${pending}`)).toBe(true);
+		expect(fs.files.has(`/doc/dirlocal-uploads/${pending}.jpg`)).toBe(true);
 	});
 
 	it('clear() removes uploads and downloads', async () => {
