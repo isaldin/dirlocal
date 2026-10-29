@@ -33,7 +33,7 @@ export class FakeServer implements Transport {
 	/** Mutations the client may not apply, as `collection/op`. */
 	denied = new Set<string>();
 	offline = false;
-	calls = { pull: 0, snapshotKeys: 0, snapshotItems: 0, push: 0 };
+	calls = { pull: 0, snapshotKeys: 0, snapshotItems: 0, push: 0, upload: 0 };
 	private nextInt = 100;
 
 	constructor(collections: string[]) {
@@ -104,6 +104,26 @@ export class FakeServer implements Transport {
 					: { collection: e.collection, key: e.key, op: 'delete' as const, version: e.id };
 			});
 		return { changes, next_cursor: rows.at(-1)?.id ?? cursor, has_more: rows.length === limit, inactive };
+	}
+
+	/** Uploaded file contents by id, as the URI the client sent. */
+	files = new Map<string, string>();
+
+	async upload(mutation: Mutation): Promise<MutationResult> {
+		this.calls.upload++;
+		this.guard();
+		const { mutation_id, key } = mutation;
+		if (this.denied.has('directus_files/upload')) return { mutation_id, status: 'rejected', error: { code: 'FORBIDDEN', message: 'denied' } };
+		if (!this.files.has(key)) {
+			if (!this.tables.has('directus_files')) this.tables.set('directus_files', new Map());
+			this.files.set(key, mutation.file!.uri);
+			this.put('directus_files', { ...mutation.data, id: key }, ME);
+		}
+		if (this.loseNextPushResponse) {
+			this.loseNextPushResponse = false;
+			throw new NetworkError('response lost');
+		}
+		return { mutation_id, status: 'applied' };
 	}
 
 	async push(mutations: Mutation[]): Promise<MutationResult[]> {

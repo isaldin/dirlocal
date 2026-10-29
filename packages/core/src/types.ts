@@ -16,16 +16,28 @@ export interface LocalQuery {
 
 export type WriteOp = { type: 'upsert'; collection: string; row: Row } | { type: 'delete'; collection: string; key: string };
 
-/** A local write waiting in the outbox; sent to `POST /dirlocal/push` as is (plan §6). */
+/** A local file to upload. `uri` must stay readable until the upload succeeds (adapters copy picked files first). */
+export interface FileUpload {
+	uri: string;
+	name: string;
+	type: string;
+}
+
+/**
+ * A local write waiting in the outbox. create/update/delete go to `POST /dirlocal/push` as is (plan §6);
+ * `upload` goes to Directus' own `POST /files`, in outbox order, so a file is on the server before the item that references it.
+ */
 export interface Mutation {
 	mutation_id: string;
 	collection: string;
-	op: 'create' | 'update' | 'delete';
+	op: 'create' | 'update' | 'delete' | 'upload';
 	key: string;
 	data?: Row;
 	patch?: Row;
 	/** Client cursor when the edit was made: every journal entry up to it had been seen. */
 	base_version?: number;
+	/** op `upload` only. */
+	file?: FileUpload;
 }
 
 export interface MutationResult {
@@ -90,8 +102,10 @@ export interface Transport {
 	snapshotKeys(collection: string): Promise<SnapshotHead>;
 	snapshotItems(collection: string, keys: string[]): Promise<Row[]>;
 	pull(params: { cursor: number; collections: string[]; limit: number }): Promise<PullResponse>;
-	/** Results in request order. */
+	/** create/update/delete mutations; results in request order. */
 	push(mutations: Mutation[]): Promise<MutationResult[]>;
+	/** An `upload` mutation: the file with `key` as its id. Retrying an upload that went through counts as applied. */
+	upload(mutation: Mutation): Promise<MutationResult>;
 }
 
 export type SyncStatus = 'stopped' | 'idle' | 'syncing' | 'offline' | 'error';

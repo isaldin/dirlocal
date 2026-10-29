@@ -1,9 +1,10 @@
 // End-to-end: engine + directusTransport + memoryStorage against the dev Directus
 // (`pnpm dev:up && pnpm dev:seed`, DIRLOCAL_SETTLE_MS=300).
-import { authentication, createDirectus, createItem, deleteItem, readItem, readItems, rest, updateItem } from '@directus/sdk';
+import { authentication, createDirectus, createItem, deleteItem, readFile, readItem, readItems, rest, updateItem } from '@directus/sdk';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createOffline, type Offline } from '../src/engine.js';
 import { memoryStorage } from '../src/storage/memory.js';
+import { directusTransport } from '../src/transport/directus.js';
 import type { OfflineEvents } from '../src/types.js';
 
 const URL = process.env['DIRECTUS_URL'] ?? 'http://localhost:8055';
@@ -113,5 +114,20 @@ describe('engine against Directus', () => {
 
 		expect(rejected.map((r) => r.error.code)).toEqual(['FORBIDDEN']);
 		expect(await worker.get('tasks', task!['id'] as string)).toMatchObject({ id: task!['id'] });
+	});
+
+	it('uploads a photo and creates the task that references it, in that order', async () => {
+		// Node's FormData needs a Blob; React Native's default part is { uri, name, type }.
+		const transport = directusTransport(await client('worker'), { filePart: (file) => new Blob(['not really a jpeg'], { type: file.type }) });
+		const device = createOffline({ transport, storage: memoryStorage(), collections: ['tasks'] });
+		await device.sync();
+
+		const photo = await device.uploadFile({ uri: 'file:///photo.jpg', name: 'photo.jpg', type: 'image/jpeg' });
+		const task = await device.mutate('tasks', { op: 'create', data: { title: 'task with photo', photo } });
+		await device.sync();
+
+		expect(await device.pending()).toEqual([]);
+		expect(await admin.request(readItem('tasks', task))).toMatchObject({ title: 'task with photo', photo });
+		expect(await admin.request(readFile(photo))).toMatchObject({ filename_download: 'photo.jpg', type: 'image/jpeg' });
 	});
 });

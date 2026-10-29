@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CollectionInactiveError, ForbiddenError, GoneError, HttpError, NetworkError } from '../src/errors.js';
-import { normalizeError } from '../src/transport/directus.js';
+import { normalizeError, uploadOutcome } from '../src/transport/directus.js';
+import type { Mutation } from '../src/types.js';
 
 /** Shape of @directus/sdk's RequestError. */
 const requestError = (status: number, errors: unknown) =>
@@ -27,5 +28,24 @@ describe('normalizeError', () => {
 
 	it('passes non-Error values through', () => {
 		expect(normalizeError('weird')).toBe('weird');
+	});
+});
+
+describe('uploadOutcome', () => {
+	const upload: Mutation = { mutation_id: 'm1', collection: 'directus_files', op: 'upload', key: 'f1' };
+
+	it('counts a duplicate id as applied: an earlier attempt went through', () => {
+		expect(uploadOutcome(upload, new HttpError(400, 'taken', 'RECORD_NOT_UNIQUE'))).toEqual({ mutation_id: 'm1', status: 'applied' });
+	});
+
+	it('rejects what retrying will not fix', () => {
+		expect(uploadOutcome(upload, new ForbiddenError('no'))).toMatchObject({ status: 'rejected', error: { code: 'FORBIDDEN' } });
+		expect(uploadOutcome(upload, new HttpError(413, 'too large'))).toMatchObject({ status: 'rejected', error: { code: 'HTTP_413' } });
+	});
+
+	it('rethrows what a retry may fix', () => {
+		for (const error of [new NetworkError('down'), new HttpError(401, 'expired'), new HttpError(429, 'slow down'), new HttpError(503, 'busy')]) {
+			expect(() => uploadOutcome(upload, error)).toThrow(error);
+		}
 	});
 });

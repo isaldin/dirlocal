@@ -16,7 +16,7 @@ export function groupByItem(outbox: Mutation[]): Map<string, Mutation[]> {
 export function overlay(row: Row | null, pending: Mutation[]): Row | null {
 	let current = row;
 	for (const mutation of pending) {
-		if (mutation.op === 'create') current = { ...current, ...mutation.data };
+		if (mutation.op === 'create' || mutation.op === 'upload') current = { ...current, ...mutation.data };
 		else if (mutation.op === 'update') current = current && { ...current, ...mutation.patch };
 		else current = null;
 	}

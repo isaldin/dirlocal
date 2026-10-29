@@ -3,7 +3,7 @@ import { Emitter } from './emitter.js';
 import { CollectionInactiveError, ForbiddenError, GoneError, NetworkError } from './errors.js';
 import { createLock, groupByItem, itemId, overlay, rekeyMutation, replaceValue, uuid as defaultUuid } from './outbox.js';
 import { directusTransport } from './transport/directus.js';
-import type { LocalQuery, Mutation, MutationResult, OfflineEvents, Row, Storage, SyncStatus, Transport, WriteOp } from './types.js';
+import type { FileUpload, LocalQuery, Mutation, MutationResult, OfflineEvents, Row, Storage, SyncStatus, Transport, WriteOp } from './types.js';
 
 export interface OfflineOptions {
 	/** @directus/sdk client with rest() and auth. Ignored when `transport` is given. */
@@ -40,6 +40,11 @@ export interface Offline {
 	 * (a new UUID for create unless `key` is given). The collection must have been snapshotted.
 	 */
 	mutate(collection: string, mutation: MutationInput): Promise<string>;
+	/**
+	 * Queues a file for upload to `directus_files` and resolves with its id, which items can reference at once:
+	 * the upload is sent before later mutations. Shown locally if `directus_files` is one of the collections.
+	 */
+	uploadFile(file: FileUpload & { key?: string; data?: Row }): Promise<string>;
 	/** Unsent mutations, oldest first. */
 	pending(): Promise<Mutation[]>;
 	/** Stops syncing and wipes local rows, cursor and unsent mutations: for logout or switching users. */
@@ -55,6 +60,7 @@ interface ServerRow {
 	row: Row | null;
 }
 
+const FILES = 'directus_files';
 const CURSOR = 'cursor';
 const snapshotKey = (collection: string) => `snapshot:${collection}`;
 const primaryKeyKey = (collection: string) => `pk:${collection}`;
@@ -199,7 +205,8 @@ export function createOffline(options: OfflineOptions): Offline {
 		const result: ServerRow[] = [];
 		for (const [collection, keySet] of items) {
 			const keys = [...keySet];
-			const primaryKey = primaryKeys.get(collection)!;
+			const primaryKey = primaryKeys.get(collection);
+			if (!primaryKey) continue; // not kept locally (e.g. an upload when directus_files isn't synced)
 			let rows: Row[] = [];
 			try {
 				rows = await transport!.snapshotItems(collection, keys);
@@ -232,10 +239,15 @@ export function createOffline(options: OfflineOptions): Offline {
 
 	async function push() {
 		for (;;) {
-			const batch = (await storage.outbox()).slice(0, batchSize);
-			if (batch.length === 0) return;
+			const outbox = await storage.outbox();
+			if (outbox.length === 0) return;
 
-			const results = new Map<string, MutationResult>((await transport!.push(batch)).map((r) => [r.mutation_id, r]));
+			// Uploads go one at a time to POST /files; other mutations in batches up to the next upload, keeping outbox order.
+			const head = outbox[0]!;
+			const upTo = outbox.findIndex((mutation) => mutation.op === 'upload');
+			const batch = head.op === 'upload' ? [head] : outbox.slice(0, Math.min(batchSize, upTo === -1 ? Infinity : upTo));
+			const response = head.op === 'upload' ? [await transport!.upload(head)] : await transport!.push(batch);
+			const results = new Map<string, MutationResult>(response.map((r) => [r.mutation_id, r]));
 			const done = batch.filter((mutation) => results.has(mutation.mutation_id));
 			if (done.length === 0) throw new Error('push: the server returned no results for the batch');
 
@@ -387,6 +399,22 @@ export function createOffline(options: OfflineOptions): Offline {
 		setStatus('stopped');
 	}
 
+	async function uploadFile({ key: given, data, ...file }: FileUpload & { key?: string; data?: Row }): Promise<string> {
+		if (!prepared) await prepare();
+		const key = given ?? uuid();
+		const row = { ...data, id: key, filename_download: file.name, type: file.type };
+		const local = primaryKeys.has(FILES) && collections.includes(FILES);
+		await lock(() =>
+			storage.write(local ? [{ type: 'upsert', collection: FILES, row }] : [], undefined, {
+				put: [{ mutation_id: uuid(), collection: FILES, op: 'upload', key, data: row, file }],
+			}),
+		);
+		if (local) changedLocally(new Set([FILES]));
+		await emitOutbox();
+		if (running && online) schedule(0);
+		return key;
+	}
+
 	return {
 		storage,
 		async start() {
@@ -407,6 +435,7 @@ export function createOffline(options: OfflineOptions): Offline {
 		query: (collection, query) => storage.query(collection, query),
 		get: (collection, key) => storage.get(collection, key),
 		mutate,
+		uploadFile,
 		pending: () => storage.outbox(),
 		async clear() {
 			stop();

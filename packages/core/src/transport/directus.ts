@@ -1,9 +1,19 @@
-import { customEndpoint, type RequestOptions, type RestClient } from '@directus/sdk';
+import { customEndpoint, type RequestOptions, type RestClient, uploadFiles } from '@directus/sdk';
 import { CollectionInactiveError, ForbiddenError, GoneError, HttpError, NetworkError } from '../errors.js';
-import type { MutationResult, PullResponse, Row, SnapshotHead, Transport } from '../types.js';
+import type { FileUpload, Mutation, MutationResult, PullResponse, Row, SnapshotHead, Transport } from '../types.js';
+
+export interface DirectusTransportOptions {
+	/**
+	 * The FormData value for a file. Default: React Native's `{ uri, name, type }` object.
+	 * On the web, return a Blob (e.g. read from IndexedDB).
+	 */
+	filePart?: (file: FileUpload) => Blob | Promise<Blob> | object;
+}
 
 /** Transport over an @directus/sdk client with rest() and authentication already configured. */
-export function directusTransport(client: RestClient<any>): Transport {
+export function directusTransport(client: RestClient<any>, options: DirectusTransportOptions = {}): Transport {
+	const filePart = options.filePart ?? ((file: FileUpload) => ({ uri: file.uri, name: file.name, type: file.type }));
+
 	async function call<T>(options: RequestOptions): Promise<T> {
 		try {
 			return await client.request(customEndpoint<T>(options));
@@ -36,7 +46,35 @@ export function directusTransport(client: RestClient<any>): Transport {
 					body: JSON.stringify({ mutations }),
 				})
 			).results,
+
+		async upload(mutation) {
+			const form = new FormData();
+			// Fields before the file become the item payload; a client id makes a retried upload detectable.
+			form.append('id', mutation.key);
+			for (const [field, value] of Object.entries(mutation.data ?? {})) {
+				if (field !== 'id' && value != null) form.append(field, typeof value === 'string' ? value : JSON.stringify(value));
+			}
+			form.append('file', (await filePart(mutation.file!)) as Blob, mutation.file!.name);
+			try {
+				await client.request(uploadFiles(form));
+				return { mutation_id: mutation.mutation_id, status: 'applied' };
+			} catch (error) {
+				return uploadOutcome(mutation, normalizeError(error));
+			}
+		},
 	};
+}
+
+/** Maps a failed upload to a result, or rethrows when a retry may succeed (network, auth, server errors). */
+export function uploadOutcome(mutation: Mutation, error: unknown): MutationResult {
+	const { mutation_id } = mutation;
+	// The id is the client's UUID: a duplicate means an earlier attempt went through and its response was lost.
+	if (error instanceof HttpError && error.code === 'RECORD_NOT_UNIQUE') return { mutation_id, status: 'applied' };
+	if (error instanceof ForbiddenError) return { mutation_id, status: 'rejected', error: { code: 'FORBIDDEN', message: error.message } };
+	if (error instanceof HttpError && error.status >= 400 && error.status < 500 && ![401, 408, 409, 429].includes(error.status)) {
+		return { mutation_id, status: 'rejected', error: { code: error.code ?? `HTTP_${error.status}`, message: error.message } };
+	}
+	throw error;
 }
 
 /** Maps SDK RequestError / fetch failures to the engine's error classes. */
@@ -55,5 +93,5 @@ export function normalizeError(error: unknown): unknown {
 	if (response.status === 410) return new GoneError(String((errors as { reason?: unknown } | undefined)?.reason ?? 'unknown'));
 	if (code === 'COLLECTION_INACTIVE') return new CollectionInactiveError(first?.message ?? 'collection inactive');
 	if (response.status === 403 || code === 'FORBIDDEN') return new ForbiddenError(first?.message ?? 'forbidden');
-	return new HttpError(response.status, first?.message ?? (error as Error).message ?? `HTTP ${response.status}`);
+	return new HttpError(response.status, first?.message ?? (error as Error).message ?? `HTTP ${response.status}`, code);
 }

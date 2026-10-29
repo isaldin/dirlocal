@@ -24,6 +24,8 @@ export class HttpError extends Error {
 	constructor(
 		readonly status: number,
 		message: string,
+		/** Directus error code (`extensions.code`), when the response had one. */
+		readonly code?: string,
 	) {
 		super(message);
 	}
