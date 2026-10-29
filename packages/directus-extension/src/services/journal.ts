@@ -89,6 +89,12 @@ export async function entriesSince(database: Database, collection: string, key: 
 	}));
 }
 
+/** True when entries past `cursor` exist but are still inside the settle window. */
+export async function hasUnsettled(database: Database, cursor: number, collections: string[]): Promise<boolean> {
+	const row = await database(CHANGES_TABLE).where('id', '>', cursor).whereIn('collection', collections).first('id');
+	return row !== undefined;
+}
+
 export async function hasPermissionChange(database: Database, cursor: number): Promise<boolean> {
 	const row = await database(CHANGES_TABLE).where({ collection: PERMISSIONS_MARKER }).where('id', '>', cursor).first('id');
 	return row !== undefined;

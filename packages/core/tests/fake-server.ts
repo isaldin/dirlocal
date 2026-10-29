@@ -33,6 +33,8 @@ export class FakeServer implements Transport {
 	/** Mutations the client may not apply, as `collection/op`. */
 	denied = new Set<string>();
 	offline = false;
+	/** Sent as retry_after_ms with the next pull that has nothing more (entries still settling). */
+	settlingFor: number | undefined;
 	calls = { pull: 0, snapshotKeys: 0, snapshotItems: 0, push: 0, upload: 0 };
 	private nextInt = 100;
 
@@ -103,7 +105,10 @@ export class FakeServer implements Transport {
 					? { collection: e.collection, key: e.key, op: 'upsert' as const, version: e.id, data: structuredClone(row) }
 					: { collection: e.collection, key: e.key, op: 'delete' as const, version: e.id };
 			});
-		return { changes, next_cursor: rows.at(-1)?.id ?? cursor, has_more: rows.length === limit, inactive };
+		const has_more = rows.length === limit;
+		const retry = !has_more && this.settlingFor !== undefined ? { retry_after_ms: this.settlingFor } : {};
+		this.settlingFor = undefined;
+		return { changes, next_cursor: rows.at(-1)?.id ?? cursor, has_more, inactive, ...retry };
 	}
 
 	/** Uploaded file contents by id, as the URI the client sent. */

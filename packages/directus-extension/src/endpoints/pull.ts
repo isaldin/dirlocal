@@ -1,7 +1,7 @@
 import type { Router } from 'express';
 import type { Config } from '../config';
 import { ensureTables } from '../hooks/schema';
-import { hasPermissionChange, maxId, readChanges } from '../services/journal';
+import { hasPermissionChange, hasUnsettled, maxId, readChanges } from '../services/journal';
 import { readVisible } from '../services/visibility';
 import type { ApiContext } from '../types';
 import { badRequest, intParam, requireUser } from './http';
@@ -66,11 +66,17 @@ export function registerPull(router: Router, { services, getSchema, database }: 
 			}
 			changes.sort((a, b) => a.version - b.version);
 
+			const nextCursor = rows.at(-1)?.id ?? cursor;
+			const hasMore = rows.length === Math.min(limit, config.maxBatch);
+			// Everything settled was returned, so anything left past the cursor is still settling.
+			const settling = !hasMore && (await hasUnsettled(database, nextCursor, requested));
+
 			res.json({
 				changes,
-				next_cursor: rows.at(-1)?.id ?? cursor,
-				has_more: rows.length === Math.min(limit, config.maxBatch),
+				next_cursor: nextCursor,
+				has_more: hasMore,
 				inactive,
+				...(settling && { retry_after_ms: config.settleMs }),
 			});
 		} catch (error) {
 			next(error);

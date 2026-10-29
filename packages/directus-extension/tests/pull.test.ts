@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { api, currentCursor, latestByKey, login, pullAll, request, settle } from './helpers';
+import { api, currentCursor, latestByKey, login, pullAll, request, SETTLE_MS, settle } from './helpers';
 
 let admin: string;
 let worker: string;
@@ -54,8 +54,17 @@ describe('pull', () => {
 		const immediate = await request('GET', `/dirlocal/pull?cursor=${cursor}&collections=projects`, admin);
 		expect(immediate.body.changes.map((c: { key: string }) => c.key)).not.toContain(project.id);
 
+		expect(immediate.body.retry_after_ms).toBe(SETTLE_MS);
+
 		const { changes } = await pullAll(admin, cursor, ['projects']);
 		expect(changes.map((c) => c.key)).toContain(project.id);
+	});
+
+	it('omits retry_after_ms when nothing is settling', async () => {
+		await settle();
+		const cursor = await currentCursor(admin);
+		const res = await request('GET', `/dirlocal/pull?cursor=${cursor}&collections=invoices`, admin);
+		expect(res.body.retry_after_ms).toBeUndefined();
 	});
 
 	it('pages with limit and has_more, ending at the same state', async () => {

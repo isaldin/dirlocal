@@ -89,6 +89,8 @@ export interface PullResponse {
 	next_cursor: number;
 	has_more: boolean;
 	inactive: string[];
+	/** Entries past next_cursor are still settling; pull again after this many ms. */
+	retry_after_ms?: number;
 }
 
 export interface SnapshotHead {
@@ -106,6 +108,13 @@ export interface Transport {
 	push(mutations: Mutation[]): Promise<MutationResult[]>;
 	/** An `upload` mutation: the file with `key` as its id. Retrying an upload that went through counts as applied. */
 	upload(mutation: Mutation): Promise<MutationResult>;
+}
+
+/** Change notifications that make the engine pull sooner (e.g. Directus WebSocket). Polling stays the fallback. */
+export interface RealtimeSource {
+	/** Starts listening; no-op while already listening. `onChange` = items of these collections may have changed. */
+	start(collections: CollectionInfo[], onChange: () => void): void;
+	stop(): void;
 }
 
 export type SyncStatus = 'stopped' | 'idle' | 'syncing' | 'offline' | 'error';

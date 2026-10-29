@@ -1,10 +1,11 @@
 // End-to-end: engine + directusTransport + memoryStorage against the dev Directus
 // (`pnpm dev:up && pnpm dev:seed`, DIRLOCAL_SETTLE_MS=300).
-import { authentication, createDirectus, createItem, deleteItem, readFile, readItem, readItems, rest, updateItem } from '@directus/sdk';
+import { authentication, createDirectus, createItem, deleteItem, readFile, readItem, readItems, realtime, rest, updateItem } from '@directus/sdk';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createOffline, type Offline } from '../src/engine.js';
 import { memoryStorage } from '../src/storage/memory.js';
 import { directusTransport } from '../src/transport/directus.js';
+import { directusRealtime } from '../src/transport/realtime.js';
 import type { OfflineEvents } from '../src/types.js';
 
 const URL = process.env['DIRECTUS_URL'] ?? 'http://localhost:8055';
@@ -129,5 +130,26 @@ describe('engine against Directus', () => {
 		expect(await device.pending()).toEqual([]);
 		expect(await admin.request(readItem('tasks', task))).toMatchObject({ title: 'task with photo', photo });
 		expect(await admin.request(readFile(photo))).toMatchObject({ filename_download: 'photo.jpg', type: 'image/jpeg' });
+	});
+
+	it('pulls a change within seconds through the WebSocket trigger, without polling', async () => {
+		const directus = createDirectus(URL).with(authentication('json')).with(rest()).with(realtime({ authMode: 'handshake' }));
+		await directus.login({ email: 'worker@example.com', password: 'worker' });
+		const device = createOffline({
+			directus,
+			storage: memoryStorage(),
+			collections: ['tasks'],
+			pollInterval: 600_000,
+			realtime: directusRealtime(directus),
+		});
+		await device.start();
+		await new Promise((resolve) => setTimeout(resolve, 500)); // subscription handshake
+
+		const task = await admin.request(createItem('tasks', { title: 'pushed over the websocket' }));
+		const deadline = Date.now() + 5000;
+		while (!(await device.get('tasks', task['id'])) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+		device.stop();
+
+		expect(await device.get('tasks', task['id'])).toMatchObject({ title: 'pushed over the websocket' });
 	});
 });

@@ -3,7 +3,19 @@ import { Emitter } from './emitter.js';
 import { CollectionInactiveError, ForbiddenError, GoneError, NetworkError } from './errors.js';
 import { createLock, groupByItem, itemId, overlay, rekeyMutation, replaceValue, uuid as defaultUuid } from './outbox.js';
 import { directusTransport } from './transport/directus.js';
-import type { FileUpload, LocalQuery, Mutation, MutationResult, OfflineEvents, Row, Storage, SyncStatus, Transport, WriteOp } from './types.js';
+import type {
+	FileUpload,
+	LocalQuery,
+	Mutation,
+	MutationResult,
+	OfflineEvents,
+	RealtimeSource,
+	Row,
+	Storage,
+	SyncStatus,
+	Transport,
+	WriteOp,
+} from './types.js';
 
 export interface OfflineOptions {
 	/** @directus/sdk client with rest() and auth. Ignored when `transport` is given. */
@@ -17,6 +29,8 @@ export interface OfflineOptions {
 	batchSize?: number;
 	/** UUID v4 generator for new keys and mutation ids. Default: crypto.randomUUID, else a getRandomValues/Math.random fallback. */
 	uuid?: () => string;
+	/** Pull as soon as the server reports a change, e.g. `directusRealtime(client)`. Started after the first successful sync. */
+	realtime?: RealtimeSource;
 }
 
 export type MutationInput =
@@ -88,6 +102,8 @@ export function createOffline(options: OfflineOptions): Offline {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let inFlight: Promise<void> | null = null;
 	let again = false;
+	// Set by the last pull when entries were still settling on the server.
+	let settleRetry: number | undefined;
 
 	const active = () => collections.filter((collection) => !unavailable.has(collection));
 
@@ -196,7 +212,10 @@ export function createOffline(options: OfflineOptions): Offline {
 				{ [CURSOR]: String(response.next_cursor) },
 			);
 			for (const collection of response.inactive) await markUnavailable(collection, 'inactive');
-			if (!response.has_more) return;
+			if (!response.has_more) {
+				settleRetry = response.retry_after_ms;
+				return;
+			}
 		}
 	}
 
@@ -348,7 +367,8 @@ export function createOffline(options: OfflineOptions): Offline {
 		if (!online) return setStatus('offline');
 		try {
 			await sync();
-			schedule(pollInterval);
+			startRealtime();
+			schedule(settleRetry === undefined ? pollInterval : Math.min(settleRetry, pollInterval));
 		} catch {
 			// Exponential backoff from 1 s, capped by the poll interval.
 			schedule(Math.min(pollInterval, 1000 * 2 ** Math.min(failures - 1, 16)));
@@ -393,9 +413,20 @@ export function createOffline(options: OfflineOptions): Offline {
 		return key;
 	}
 
+	function startRealtime() {
+		const infos = active().flatMap((collection) => {
+			const primaryKey = primaryKeys.get(collection);
+			return primaryKey ? [{ collection, primaryKey }] : [];
+		});
+		options.realtime?.start(infos, () => {
+			if (running && online) schedule(0);
+		});
+	}
+
 	function stop() {
 		running = false;
 		clearTimeout(timer);
+		options.realtime?.stop();
 		setStatus('stopped');
 	}
 

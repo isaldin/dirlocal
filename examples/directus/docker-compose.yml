@@ -37,6 +37,8 @@ services:
       DB_PASSWORD: directus
       CACHE_ENABLED: 'false'
       TELEMETRY: 'false'
+      # Realtime trigger for clients (off by default in Directus).
+      WEBSOCKETS_ENABLED: 'true'
       DIRLOCAL_COLLECTIONS: projects,tasks,notes,invoices,directus_files
       # Short settle window so integration tests don't wait 2 s per pull (default 2000).
       DIRLOCAL_SETTLE_MS: 300
