@@ -2,6 +2,7 @@
 	"name": "@dirlocal/core",
 	"version": "0.0.0",
 	"description": "Platform-agnostic offline engine for Directus: snapshot, pull, cursors, scheduling",
+	"license": "MIT",
 	"type": "module",
 	"exports": {
 		".": {

@@ -64,3 +64,7 @@ pnpm test                      # integration tests against that Directus, plus c
 ```
 
 See [CLAUDE.md](CLAUDE.md) for commands and verified Directus behaviour.
+
+## License
+
+[MIT](LICENSE)

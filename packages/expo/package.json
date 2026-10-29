@@ -2,6 +2,7 @@
 	"name": "@dirlocal/expo",
 	"version": "0.0.0",
 	"description": "Expo adapter for dirlocal: expo-sqlite storage, file cache and React hooks",
+	"license": "MIT",
 	"type": "module",
 	"exports": {
 		".": {
